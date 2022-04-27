@@ -15,6 +15,7 @@ import (
 	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
+	gardenclient "github.com/gardener/gardener/pkg/client/kubernetes"
 	"github.com/gardener/gardener/pkg/extensions"
 	managedresources "github.com/gardener/gardener/pkg/utils/managedresources"
 	"github.com/go-logr/logr"
@@ -42,15 +43,17 @@ const (
 // NewActuator returns an actuator responsible for Extension resources.
 func NewActuator() extension.Actuator {
 	return &actuator{
-		logger:        log.Log.WithName(ActuatorName),
+		logger: log.Log.WithName(ActuatorName),
 	}
 }
 
+
 type actuator struct {
-	client        client.Client // controller-runtime client for interaction with the cluster
-	config        *rest.Config
-	decoder       runtime.Decoder
-	logger        logr.Logger          // logger
+	client          client.Client // controller-runtime client for interaction with the seed cluster
+	clientGardenlet client.Client // controller-runtime client for interaction with the garden cluster
+	config          *rest.Config
+	decoder         runtime.Decoder
+	logger          logr.Logger // logger
 }
 
 // Reconcile the Extension resource.
@@ -68,7 +71,7 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 	}
 
 	fluxConfigMap := corev1.ConfigMap{}
-	err = a.client.Get(ctx, fluxConfig, &fluxConfigMap)
+	err = a.clientGardenlet.Get(ctx, fluxConfig, &fluxConfigMap)
 	if err != nil {
 		return err
 	}
@@ -80,7 +83,7 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 	}
 
 	// deploy the managed resource for the flux installatation
-	err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, false, shootResourceFluxInstall)
+	err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, true, shootResourceFluxInstall)
 	if err != nil {
 		return err
 	}
@@ -93,7 +96,7 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 	a.logger.Info("Please add the (public) deploy key to your git repository, you can find it in the secret")
 
 	// deploy the managed resource for the flux configuration
-	err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig, false, shootResourceFluxConfig)
+	err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig, true, shootResourceFluxConfig)
 	if err != nil {
 		return err
 	}
@@ -142,6 +145,9 @@ func (a *actuator) Migrate(ctx context.Context, ex *extensionsv1alpha1.Extension
 	if err := managedresources.SetKeepObjects(ctx, a.client, ex.GetNamespace(), constants.ManagedResourceNameFluxInstall, true); err != nil {
 		return err
 	}
+	if err := managedresources.SetKeepObjects(ctx, a.client, ex.GetNamespace(), constants.ManagedResourceNameFluxConfig, true); err != nil {
+		return err
+	}
 
 	return a.Delete(ctx, ex)
 }
@@ -155,6 +161,8 @@ func (a *actuator) InjectConfig(config *rest.Config) error {
 // InjectClient injects the controller runtime client into the reconciler.
 func (a *actuator) InjectClient(client client.Client) error {
 	a.client = client
+	clientInterface, _ := gardenclient.NewClientFromSecret(context.Background(), a.client, "garden", "gardenlet-kubeconfig")
+	a.clientGardenlet = clientInterface.Client()
 	return nil
 }
 
@@ -191,10 +199,11 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 		var err error
 		fluxRepoSecret := corev1.Secret{}
 
+
 		// First, we need to check whether the source secret already exists in the projectNamespace.
 		// If so, copy the data over to the per shoot secret data. Otherwise, create a new secret and
 		// deploy it to the projectNamespace and use it for the managed resource.
-		if a.client.Get(ctx, client.ObjectKey{Namespace: projectNamespace, Name: constants.FluxSourceSecretName}, &fluxRepoSecret) == nil {
+		if a.clientGardenlet.Get(ctx, client.ObjectKey{Namespace: projectNamespace, Name: constants.FluxSourceSecretName}, &fluxRepoSecret) == nil {
 			fluxRepoSecret.APIVersion = "v1"
 			fluxRepoSecret.Kind = "Secret"
 			fluxRepoSecret.ObjectMeta = metav1.ObjectMeta{
@@ -226,7 +235,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 			// in order to reuse it, when other shoots are created
 			yaml.Unmarshal(fluxRepoSecretData, &fluxRepoSecret)
 			fluxRepoSecret.SetNamespace(projectNamespace)
-			a.client.Create(ctx, &fluxRepoSecret)
+			a.clientGardenlet.Create(ctx, &fluxRepoSecret)
 		}
 
 		shootResources["flux-reposecret"] = fluxRepoSecretData
