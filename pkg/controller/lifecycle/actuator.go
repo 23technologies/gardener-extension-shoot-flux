@@ -194,7 +194,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 
 	shootResources := make(map[string][]byte)
 
-	if repoconfig["RepositoryType"] == "private" {
+	if repoconfig["repositoryType"] == "private" {
 
 		var fluxRepoSecretData []byte
 		var err error
@@ -218,7 +218,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 		} else {
 			// parse the repository url in order to extract the hostname
 			// which is required for the generation of an ssh keypair
-			repourl, err := url.Parse(repoconfig["RepositoryUrl"])
+			repourl, err := url.Parse(repoconfig["repositoryUrl"])
 			if err != nil {
 				return nil, err
 			}
@@ -278,9 +278,9 @@ func getFluxSourceData(repoconfig map[string]string) sourcecontrollerv1beta2.Git
 				Duration: time.Second * 30,
 			},
 			Reference: &sourcecontrollerv1beta2.GitRepositoryRef{
-				Branch: repoconfig["RepositoryBranch"],
+				Branch: repoconfig["repositoryBranch"],
 			},
-			URL: repoconfig["RepositoryUrl"],
+			URL: repoconfig["repositoryUrl"],
 		},
 		Status: sourcecontrollerv1beta2.GitRepositoryStatus{},
 	}
