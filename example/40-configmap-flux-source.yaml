@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-config
+  namespace: garden-testing
+data:
+  repositoryUrl: ssh://git@github.com/THE-OWNER/THE-REPO
+  repositoryBranch: main
+  repositoryType: private
