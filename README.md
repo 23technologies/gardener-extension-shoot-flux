@@ -51,7 +51,7 @@ Then, your shoot cluster should be reconciled to the declarative definition in y
 ## Develop this extension locally
 ### Prerequisites
   * A local installation of Go
-  * A Gardener (could also be the [local setup](https://gardener.cloud/docs/gardener/development/getting_started_locally/)
+  * A Gardener (could also be the [local setup](https://gardener.cloud/docs/gardener/development/getting_started_locally/))
 
 ### Running and Debugging the controller
   * Place the kubeconfig of the seed cluster in `PATH-TO-REPO-ROOT/dev/kubeconfig`
