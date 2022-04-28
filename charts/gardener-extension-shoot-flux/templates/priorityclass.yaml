@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2021 SAP SE or an SAP affiliate company and Gardener contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gardener-extension-{{ .Values.serviceName }}
+  labels:
+    app.kubernetes.io/name: gardener-extension-{{ .Values.serviceName }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+value: 1000000000
+globalDefault: false
+description: "Priority class for the Gardener extension: shoot-networking-flux."

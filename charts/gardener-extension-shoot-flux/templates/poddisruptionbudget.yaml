@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2021 SAP SE or an SAP affiliate company and Gardener contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+---
+{{- if gt (int .Values.replicaCount) 1 }}
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: gardener-extension-{{ .Values.serviceName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: gardener-extension-{{ .Values.serviceName }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  maxUnavailable: {{ sub (int .Values.replicaCount) 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gardener-extension-{{ .Values.serviceName }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
