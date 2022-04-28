@@ -113,6 +113,15 @@ func (a *actuator) Delete(ctx context.Context, ex *extensionsv1alpha1.Extension)
 	timeoutShootCtx, cancelShootCtx := context.WithTimeout(ctx, twoMinutes)
 	defer cancelShootCtx()
 
+
+  // also delete the objects in case the extension resource is deleted
+	if err := managedresources.SetKeepObjects(ctx, a.client, ex.GetNamespace(), constants.ManagedResourceNameFluxInstall, false); err != nil {
+		return err
+	}
+	if err := managedresources.SetKeepObjects(ctx, a.client, ex.GetNamespace(), constants.ManagedResourceNameFluxConfig, false); err != nil {
+		return err
+	}
+
 	// delete the flux configuration resource
 	if err := managedresources.DeleteForShoot(ctx, a.client, namespace, constants.ManagedResourceNameFluxConfig); err != nil {
 		return err
@@ -141,14 +150,6 @@ func (a *actuator) Restore(ctx context.Context, ex *extensionsv1alpha1.Extension
 
 // Migrate the Extension resource.
 func (a *actuator) Migrate(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
-	// Keep objects for shoot managed resources so that they are not deleted from the shoot during the migration
-	if err := managedresources.SetKeepObjects(ctx, a.client, ex.GetNamespace(), constants.ManagedResourceNameFluxInstall, true); err != nil {
-		return err
-	}
-	if err := managedresources.SetKeepObjects(ctx, a.client, ex.GetNamespace(), constants.ManagedResourceNameFluxConfig, true); err != nil {
-		return err
-	}
-
 	return a.Delete(ctx, ex)
 }
 
