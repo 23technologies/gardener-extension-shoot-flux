@@ -62,7 +62,7 @@ Then, your shoot cluster should be reconciled to the declarative definition in y
   ```
   * Apply it to the garden cluster:
   ``` shell
-  kubectl apply -f `PATH-TO-REPO-ROOT/example/controller-registration.yaml
+  kubectl apply -f PATH-TO-REPO-ROOT/example/controller-registration.yaml
   ```
   * Run and debug the controller with [dlv](https://github.com/go-delve/delve) by:
   ``` shell
