@@ -45,6 +45,7 @@ metadata:
 spec:
   extensions:
   - type: shoot-flux
+...
 ```
 Then, your shoot cluster should be reconciled to the declarative definition in your Git repository.
 
