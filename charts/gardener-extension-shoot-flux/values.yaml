@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2021 SAP SE or an SAP affiliate company and Gardener contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+---
+image:
+  repository: ghcr.io/23technologies/gardener-extension-shoot-flux
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceName: shoot-flux
+replicaCount: 0
+ignoreResources: true
+
+controllers:
+  lifecycle:
+    concurrentSyncs: 5
+  healthcheck:
+    concurrentSyncs: 5
+  ignoreOperationAnnotation: false
+
+vpa:
+  enabled: true
+  resourcePolicy:
+    minAllowed:
+      cpu: 30m
+      memory: 64Mi
+  updatePolicy:
+    updateMode: "Auto"
+
+gardener:
+  version: ""
