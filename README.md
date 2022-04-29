@@ -1,5 +1,7 @@
 # [Gardener Extension for Flux](https://gardener.cloud)
 
+[![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
+
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
 
@@ -13,9 +15,6 @@
 - [General concepts and how it works internally](#general-concepts-and-how-it-works-internally)
 
 <!-- markdown-toc end -->
-
-[![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
-
 [Project Gardener](https://github.com/gardener/gardener) implements the automated management and operation of [Kubernetes](https://kubernetes.io/) clusters as a service.
 Its main principle is to leverage Kubernetes concepts for all of its tasks.
 
