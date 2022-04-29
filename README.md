@@ -2,6 +2,14 @@
 
 [![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
 
+[Project Gardener](https://github.com/gardener/gardener) implements the automated management and operation of [Kubernetes](https://kubernetes.io/) clusters as a service.
+Its main principle is to leverage Kubernetes concepts for all of its tasks.
+
+This controller implements Gardener's extension contract for the `shoot-flux` extension.
+An example for a `ControllerRegistration` resource that can be used to register this controller to Gardener can be found [here](example/controller-registration.yaml).
+
+Please find more information regarding the extensibility concepts and a detailed proposal [here](https://github.com/gardener/gardener/blob/master/docs/proposals/01-extensibility.md).
+
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
 
@@ -16,13 +24,6 @@
 - [Last remarks](#last-remarks)
 
 <!-- markdown-toc end -->
-[Project Gardener](https://github.com/gardener/gardener) implements the automated management and operation of [Kubernetes](https://kubernetes.io/) clusters as a service.
-Its main principle is to leverage Kubernetes concepts for all of its tasks.
-
-This controller implements Gardener's extension contract for the `shoot-flux` extension.
-An example for a `ControllerRegistration` resource that can be used to register this controller to Gardener can be found [here](example/controller-registration.yaml).
-
-Please find more information regarding the extensibility concepts and a detailed proposal [here](https://github.com/gardener/gardener/blob/master/docs/proposals/01-extensibility.md).
 
 # What does this package provide?
 
