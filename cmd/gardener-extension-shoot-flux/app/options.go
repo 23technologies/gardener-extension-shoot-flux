@@ -7,8 +7,10 @@ package app
 import (
 	"os"
 
-	controllercmd "github.com/gardener/gardener/extensions/pkg/controller/cmd"
+	"github.com/23technologies/gardener-extension-shoot-flux/pkg/controller/healthcheck"
 	"github.com/23technologies/gardener-extension-shoot-flux/pkg/controller/lifecycle"
+	controllercmd "github.com/gardener/gardener/extensions/pkg/controller/cmd"
+	extensionshealthcheckcontroller "github.com/gardener/gardener/extensions/pkg/controller/healthcheck"
 )
 
 // ExtensionName is the name of the extension.
@@ -50,10 +52,11 @@ func NewOptions() *Options {
 			// This is a default value.
 			MaxConcurrentReconciles: 5,
 		},
-		reconcileOptions:   &controllercmd.ReconcilerOptions{},
-		controllerSwitches: controllercmd.NewSwitchOptions(controllercmd.Switch(lifecycle.Name, lifecycle.AddToManager)),
+		reconcileOptions: &controllercmd.ReconcilerOptions{},
+		controllerSwitches: controllercmd.NewSwitchOptions(
+			controllercmd.Switch(lifecycle.Name, lifecycle.AddToManager),
+			controllercmd.Switch(extensionshealthcheckcontroller.ControllerName, healthcheck.AddToManager)),
 	}
-		
 
 	options.optionAggregator = controllercmd.NewOptionAggregator(
 		options.generalOptions,
