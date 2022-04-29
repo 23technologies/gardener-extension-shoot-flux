@@ -1,5 +1,19 @@
 # [Gardener Extension for Flux](https://gardener.cloud)
 
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+**Table of Contents**
+
+- [[Gardener Extension for Flux](https://gardener.cloud)](#gardener-extension-for-fluxhttpsgardenercloud)
+- [What does this package provide?](#what-does-this-package-provide)
+- [How to...](#how-to)
+    - [Use it as a gardener operator](#use-it-as-a-gardener-operator)
+    - [Develop this extension locally](#develop-this-extension-locally)
+        - [Prerequisites](#prerequisites)
+        - [Running and Debugging the controller](#running-and-debugging-the-controller)
+- [General concepts and how it works internally](#general-concepts-and-how-it-works-internally)
+
+<!-- markdown-toc end -->
+
 [![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
 
 [Project Gardener](https://github.com/gardener/gardener) implements the automated management and operation of [Kubernetes](https://kubernetes.io/) clusters as a service.
