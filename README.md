@@ -35,6 +35,7 @@ Thus, this extension provides a general approach to install addons to shoot clus
 
 ## Use it as a gardener operator
 Of course, you need to apply the `controller-registration` resources to the garden cluster first.
+You can find the corresponding yaml-files in our [releases](https://github.com/23technologies/gardener-extension-shoot-flux/releases).
 Moreover, you will need some configuration pointing to the git repository you want to use as a basis for flux.
 This configuration is provided on a per-project basis via a `ConfigMap`:
 ``` yaml
