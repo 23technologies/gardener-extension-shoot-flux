@@ -55,7 +55,7 @@ Then, your shoot cluster should be reconciled to the declarative definition in y
   * A Gardener (could also be the [local setup](https://gardener.cloud/docs/gardener/development/getting_started_locally/))
 
 ### Running and Debugging the controller
-  * Place the kubeconfig of the seed cluster in `PATH-TO-REPO-ROOT/dev/kubeconfig`
+  * Place the kubeconfig of the `Seed` cluster in `PATH-TO-REPO-ROOT/dev/kubeconfig`
   * Set `ignoreResources=true` and `replicaCount=0` in `PATH-TO-REPO-ROOT/charts/gardener-extension-shoot-flux/values.yaml`
   * Generate the `controller-registration.yaml` by e.g.
   ``` shell
@@ -71,3 +71,58 @@ Then, your shoot cluster should be reconciled to the declarative definition in y
   ```
   * You can set breakpoints now, and instruct dlv to run the controller by entering "c" into the dlv commandline.
   * Lastly, deploy a `ConfigMap` pointing to a git repository and a `Shoot` with the `shoot-flux` extension enabled (as explained [above](#use-it-as-a-gardener-operator)).
+
+# General concepts and how it works internally
+Generally, this extension was motivated by the idea of enabling Gardener operators to pre-configure `Shoot` clusters with addons.
+Obviously, a declarative approach to the configuration makes sense in this scenario.
+Consequently fluxcd was chosen as a more general configuration tool for Kubernetes clusters.
+From this basis, a Gardener operator can track the configuration of `Shoot` clusters in Git repositories and configure all `Shoot`s in a project to use a configuration via a `ConfigMap` in the project namespace.
+This overall workflow is depicted in the block diagram below.
+
+```
+					  +--------------------------------------------------------+
+					  |  Gardener operator                                     |
+					  +--------------------------------------------------------+
+					  |  - A human being                                       +-----------------------+
+					  |                                                        |                       |
+					  |                                                        |                       |
+					  +-----+--------------------------------------------------+                       |configures SSH-key
+							|                  ^                                                       |
+							|                  |                                                       |
+							|delploys          |read SSH-key                                           |
+							|Configmap         |                                                       |
+							|                  |                                                       |
+							v                  |                                                       |
+					  +------------------------+--------------------------------+                      v
+					  |Garden cluster                                           |           +------------------------------------+
+					  +-------------------------+------------------------+------+           |Git repository                      |
+					  |Projetct 1               |Project 2               |...   |           +------------------------------------+
+					  +-------------------------+------------------------+------+           |                                    |
+					  |- Configmap containing   |- Configmap containing  |      |           |- Configuration for shoot clusters  |
+					  |  flux configuration     |  flux configuration    |      |           |                                    |
+					  |                         |                        |...   |           |                                    |
+			 +------->|- ControllerRegistration |- ControllerRegistration|      |           |                                    |
+			 |        |                         |                        |      |           |                                    |
+			 |        |- Shoot with extension   |- Shoot with extension  |      |           +------------------------------------+
+			 |        |  enabled                |  enabled               |      |                ^
+			 |        +-------------------------+------------------------+------+                |
+read config  |                                                                                   |
+and generate |                                                                                   |reconcile
+SSH-keys     |                                                                                   |
+			 |        +----------------------+         +------------------------+                |
+			 |        |Seed cluster          |         |Shoot cluster           |                |
+			 |        +----------------------+         +-------------------+----+                |
+			 |        |- Controller watching |         |- Flux controllers +----+----------------+
+			 +--------+> extension resource  |         |                        |
+					  |     |                |         |- GitRepository resource|
+					  |     |deploys         |         |                        |
+					  |     |                |         |- A main kustomization  |
+					  |     v                |         |                        |
+					  |- Managed resources   |         |                        |
+					  |  for flux controllers|         |                        |
+					  |  and flux config     |         |                        |
+					  +----------------------+         +------------------------+
+```
+Wait! How does the controller in the `Seed` cluster communicate to the garden cluster?
+Actually, we are just using the `Secret` containing the `gardenlet-kubeconfig` which should be available, when the gardenlet is run inside the `Seed` cluster.
+Of course, this is not a rock solid solution, but it was an easy way to achieve the overall goal by simple means.
