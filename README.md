@@ -13,6 +13,7 @@
         - [Prerequisites](#prerequisites)
         - [Running and Debugging the controller](#running-and-debugging-the-controller)
 - [General concepts and how it works internally](#general-concepts-and-how-it-works-internally)
+- [Last remarks](#last-remarks)
 
 <!-- markdown-toc end -->
 [Project Gardener](https://github.com/gardener/gardener) implements the automated management and operation of [Kubernetes](https://kubernetes.io/) clusters as a service.
@@ -139,3 +140,8 @@ SSH-keys     |                                                                  
 Wait! How does the controller in the `Seed` cluster communicate to the garden cluster?
 Actually, we are just using the `Secret` containing the `gardenlet-kubeconfig` which should be available, when the gardenlet is run inside the `Seed` cluster.
 Of course, this is not a rock solid solution, but it was an easy way to achieve the overall goal by simple means.
+
+# Last remarks
+This extensions is still in a preliminary state and contains e.g. hard-coded links to the release of fluxcd. 
+However, the work and testing is still ongoing and the extension will be continuously improved.
+In general, you could consider the current state of the extension as kind of a minimal working example for Gardener extensions, as it is very low complex to this point.
