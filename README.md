@@ -13,7 +13,7 @@ Please find more information regarding the extensibility concepts and a detailed
 # What does this package provide?
 
 The general idea of this controller is to install the [fluxcd](https://fluxcd.io/) controllers together with a [flux gitrepository resource](https://fluxcd.io/docs/components/source/gitrepositories/) and a [flux kustomization resource](https://fluxcd.io/docs/components/kustomize/kustomization/) into newly created shoot clusters.
-In consequence, your fresh shoot cluster will be reconciled to the state defined in the Git Repository by the fluxcd controllers.
+In consequence, your fresh shoot cluster will be reconciled to the state defined in the Git repository by the fluxcd controllers.
 Thus, this extension provides a general approach to install addons to shoot clusters.
 
 # How to...
@@ -33,7 +33,7 @@ data:
   repositoryBranch: main
   repositoryType: private
 ```
-At the time writing this, the extension-controller will generate a new SSH-keypair for you, if set the `repositoryType` to private. This keypair will be stored in a the garden cluster as a `Secret` and you will need to make the public key available to you git SSH-server, so that flux can read from your repository. Note: On e.g. github.com, this can be achieved by adding a deploy key to your Git repository.
+At the time writing this, the extension-controller will generate a new SSH-keypair for you, if the `repositoryType` is set to private. This keypair will be stored in the garden cluster as a `Secret` and you will need to make the public key available to you git SSH-server, so that flux can read from your repository. Note: On e.g. github.com, this can be achieved by adding a deploy key to your Git repository.
 
 Next you can deploy a `Shoot` with the `shoot-flux` extension enabled:
 ``` yaml
@@ -70,4 +70,4 @@ Then, your shoot cluster should be reconciled to the declarative definition in y
   dlv debug ./cmd/gardener-extension-shoot-flux -- --kubeconfig=dev/kubeconfig.yaml  --ignore-operation-annotation=true --leader-election=false --gardener-version="v1.44.4"
   ```
   * You can set breakpoints now, and instruct dlv to run the controller by entering "c" into the dlv commandline.
-  * Lastly, deploy a `ConfigMap` pointing to a git repository and a `Shoot` with the `shoot-flux` extension enabled (as explained [here](#use-it-as-a-gardener-operator)).
+  * Lastly, deploy a `ConfigMap` pointing to a git repository and a `Shoot` with the `shoot-flux` extension enabled (as explained [above](#use-it-as-a-gardener-operator)).
