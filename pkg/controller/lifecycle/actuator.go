@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/go-github/v44/github"
+
 	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
@@ -75,8 +77,28 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 		return err
 	}
 
-	// create the resource for the flux installation
-	fluxVersion := fluxConfigMap.Data["fluxVersion"]
+	// Create the resource for the flux installation
+	// If the ConfigMap in the garden cluster defines a version, use this version.
+	// Otherwise, simply use the latest version available on Github
+	var fluxVersion string
+	var exists bool
+	ghClient := github.NewClient(nil)
+	if fluxVersion, exists = fluxConfigMap.Data["fluxVersion"]; !exists {
+		a.logger.Info("You should specify a version for flux in the ConfigMap. I will simply use the latest release now.")
+		ghReleaseLatest, _, err := ghClient.Repositories.GetLatestRelease(ctx, "fluxcd", "flux2")
+		if err != nil {
+			return err
+		}
+		fluxVersion = *ghReleaseLatest.Name
+	} else
+	{
+		// Check if the release defined in the ConfigMap exists. If not, return an error
+		_, _, err := ghClient.Repositories.GetReleaseByTag(ctx, "fluxcd", "flux2", fluxVersion)
+		if err != nil {
+		a.logger.Error(err, "The flux version you specified does not exists. Please check the ConfigMap in the garden cluster.")
+			return err
+		}
+	}
 	shootResourceFluxInstall, err := createShootResourceFluxInstall(fluxVersion)
 	if err != nil {
 		return err
@@ -325,7 +347,7 @@ func getFluxInstallYaml(fluxVersion string) ([]byte, error) {
 			return nil
 		},
 	}
-	resp, err := client.Get("https://github.com/fluxcd/flux2/releases/download/v" + fluxVersion + "/install.yaml")
+	resp, err := client.Get("https://github.com/fluxcd/flux2/releases/download/" + fluxVersion + "/install.yaml")
 	if err != nil {
 		return nil, err
 	}
