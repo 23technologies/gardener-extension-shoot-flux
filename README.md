@@ -45,6 +45,7 @@ metadata:
   name: flux-config
   namespace: YOUR-PROJECT-NAMESPACE
 data:
+  fluxVersion: v0.29.5 # optional, if not defined the latest release will be used
   repositoryUrl: ssh://git@github.com/THE-OWNER/THE-REPO
   repositoryBranch: main
   repositoryType: private
