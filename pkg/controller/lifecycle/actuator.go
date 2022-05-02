@@ -47,7 +47,6 @@ func NewActuator() extension.Actuator {
 	}
 }
 
-
 type actuator struct {
 	client          client.Client // controller-runtime client for interaction with the seed cluster
 	clientGardenlet client.Client // controller-runtime client for interaction with the garden cluster
@@ -77,7 +76,8 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 	}
 
 	// create the resource for the flux installation
-	shootResourceFluxInstall, err := createShootResourceFluxInstall()
+	fluxVersion := fluxConfigMap.Data["fluxVersion"]
+	shootResourceFluxInstall, err := createShootResourceFluxInstall(fluxVersion)
 	if err != nil {
 		return err
 	}
@@ -113,8 +113,7 @@ func (a *actuator) Delete(ctx context.Context, ex *extensionsv1alpha1.Extension)
 	timeoutShootCtx, cancelShootCtx := context.WithTimeout(ctx, twoMinutes)
 	defer cancelShootCtx()
 
-
-  // also delete the objects in case the extension resource is deleted
+	// also delete the objects in case the extension resource is deleted
 	if err := managedresources.SetKeepObjects(ctx, a.client, ex.GetNamespace(), constants.ManagedResourceNameFluxInstall, false); err != nil {
 		return err
 	}
@@ -173,9 +172,9 @@ func (a *actuator) InjectScheme(scheme *runtime.Scheme) error {
 	return nil
 }
 
-func createShootResourceFluxInstall() (map[string][]byte, error) {
+func createShootResourceFluxInstall(fluxVersion string) (map[string][]byte, error) {
 
-	fluxInstallYaml, err := getFluxInstallYaml()
+	fluxInstallYaml, err := getFluxInstallYaml(fluxVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +198,6 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 		var fluxRepoSecretData []byte
 		var err error
 		fluxRepoSecret := corev1.Secret{}
-
 
 		// First, we need to check whether the source secret already exists in the projectNamespace.
 		// If so, copy the data over to the per shoot secret data. Otherwise, create a new secret and
@@ -318,7 +316,7 @@ func getFluxKustomizationData() kustomizecontrollerv1beta2.Kustomization {
 	return ks
 }
 
-func getFluxInstallYaml() ([]byte, error) {
+func getFluxInstallYaml(fluxVersion string) ([]byte, error) {
 
 	// download flux install.yaml and base64 encode it to the secret data
 	client := http.Client{
@@ -327,7 +325,7 @@ func getFluxInstallYaml() ([]byte, error) {
 			return nil
 		},
 	}
-	resp, err := client.Get("https://github.com/fluxcd/flux2/releases/download/v0.28.2/install.yaml")
+	resp, err := client.Get("https://github.com/fluxcd/flux2/releases/download/v" + fluxVersion + "/install.yaml")
 	if err != nil {
 		return nil, err
 	}
