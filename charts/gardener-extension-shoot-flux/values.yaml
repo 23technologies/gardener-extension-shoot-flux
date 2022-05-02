@@ -9,8 +9,8 @@ image:
   pullPolicy: IfNotPresent
 
 serviceName: shoot-flux
-replicaCount: 0
-ignoreResources: true
+replicaCount: 1
+ignoreResources: false
 
 controllers:
   lifecycle:
