@@ -340,7 +340,7 @@ func getFluxKustomizationData() kustomizecontrollerv1beta2.Kustomization {
 
 func getFluxInstallYaml(fluxVersion string) ([]byte, error) {
 
-	// download flux install.yaml and base64 encode it to the secret data
+	// download flux install.yaml
 	client := http.Client{
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			r.URL.Opaque = r.URL.Path
