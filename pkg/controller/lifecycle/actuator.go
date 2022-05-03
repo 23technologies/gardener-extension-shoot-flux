@@ -77,28 +77,12 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 		return err
 	}
 
-	// Create the resource for the flux installation
-	// If the ConfigMap in the garden cluster defines a version, use this version.
-	// Otherwise, simply use the latest version available on Github
-	var fluxVersion string
-	var exists bool
-	ghClient := github.NewClient(nil)
-	if fluxVersion, exists = fluxConfigMap.Data["fluxVersion"]; !exists {
-		a.logger.Info("You should specify a version for flux in the ConfigMap. I will simply use the latest release now.")
-		ghReleaseLatest, _, err := ghClient.Repositories.GetLatestRelease(ctx, "fluxcd", "flux2")
-		if err != nil {
-			return err
-		}
-		fluxVersion = *ghReleaseLatest.Name
-	} else
-	{
-		// Check if the release defined in the ConfigMap exists. If not, return an error
-		_, _, err := ghClient.Repositories.GetReleaseByTag(ctx, "fluxcd", "flux2", fluxVersion)
-		if err != nil {
-		a.logger.Error(err, "The flux version you specified does not exists. Please check the ConfigMap in the garden cluster.")
-			return err
-		}
+	fluxVersion, err := getFluxVersion(fluxConfigMap.Data)
+	if err != nil {
+		a.logger.Error(err, "I was not able to determine a flux release with respect to the version you defined. Check the configmap in the garden cluster for the version.")
+		return err
 	}
+	// Create the resource for the flux installation
 	shootResourceFluxInstall, err := createShootResourceFluxInstall(fluxVersion)
 	if err != nil {
 		return err
@@ -208,14 +192,14 @@ func createShootResourceFluxInstall(fluxVersion string) (map[string][]byte, erro
 }
 
 // createShootResourceFluxConfig ...
-func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNamespace string, repoconfig map[string]string) (map[string][]byte, error) {
+func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNamespace string, fluxconfig map[string]string) (map[string][]byte, error) {
 
-	fluxSource := getFluxSourceData(repoconfig)
+	fluxSource := getFluxSourceData(fluxconfig)
 	fluxKustomization := getFluxKustomizationData()
 
 	shootResources := make(map[string][]byte)
 
-	if repoconfig["repositoryType"] == "private" {
+	if fluxconfig["repositoryType"] == "private" {
 
 		var fluxRepoSecretData []byte
 		var err error
@@ -238,7 +222,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 		} else {
 			// parse the repository url in order to extract the hostname
 			// which is required for the generation of an ssh keypair
-			repourl, err := url.Parse(repoconfig["repositoryUrl"])
+			repourl, err := url.Parse(fluxconfig["repositoryUrl"])
 			if err != nil {
 				return nil, err
 			}
@@ -282,7 +266,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 }
 
 // getFluxSourceSecrets ...
-func getFluxSourceData(repoconfig map[string]string) sourcecontrollerv1beta2.GitRepository {
+func getFluxSourceData(fluxconfig map[string]string) sourcecontrollerv1beta2.GitRepository {
 
 	gitrepo := sourcecontrollerv1beta2.GitRepository{
 		TypeMeta: metav1.TypeMeta{
@@ -298,9 +282,9 @@ func getFluxSourceData(repoconfig map[string]string) sourcecontrollerv1beta2.Git
 				Duration: time.Second * 30,
 			},
 			Reference: &sourcecontrollerv1beta2.GitRepositoryRef{
-				Branch: repoconfig["repositoryBranch"],
+				Branch: fluxconfig["repositoryBranch"],
 			},
-			URL: repoconfig["repositoryUrl"],
+			URL: fluxconfig["repositoryUrl"],
 		},
 		Status: sourcecontrollerv1beta2.GitRepositoryStatus{},
 	}
@@ -338,9 +322,33 @@ func getFluxKustomizationData() kustomizecontrollerv1beta2.Kustomization {
 	return ks
 }
 
+// getFluxVersion ...
+func getFluxVersion(fluxconfig map[string]string) (string, error) {
+
+	// If the ConfigMap in the garden cluster defines a version, use this version.
+	// Otherwise, simply use the latest version available on Github
+	var fluxVersion string
+	var exists bool
+	ghClient := github.NewClient(nil)
+	if fluxVersion, exists = fluxconfig["fluxVersion"]; !exists {
+		ghReleaseLatest, _, err := ghClient.Repositories.GetLatestRelease(context.Background(), "fluxcd", "flux2")
+		if err != nil {
+			return "", err
+		}
+		fluxVersion = *ghReleaseLatest.Name
+	} else {
+		// Check if the release defined in the ConfigMap exists. If not, return an error
+		_, _, err := ghClient.Repositories.GetReleaseByTag(context.Background(), "fluxcd", "flux2", fluxVersion)
+		if err != nil {
+			return "", err
+		}
+	}
+	return fluxVersion, nil
+}
+
 func getFluxInstallYaml(fluxVersion string) ([]byte, error) {
 
-	// download flux install.yaml and base64 encode it to the secret data
+	// download flux install.yaml
 	client := http.Client{
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			r.URL.Opaque = r.URL.Path
