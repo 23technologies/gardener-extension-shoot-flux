@@ -14,6 +14,7 @@ Files:
   charts/gardener-extension-shoot-flux/templates/_helpers.tpl
   charts/gardener-extension-shoot-flux/templates/secret-oauth2.yaml
   CODEOWNERS
+	example/controller-registration.yaml
   go.mod
   go.sum
   hack/api-reference/config.json
@@ -576,3 +577,11 @@ License: MIT
 Files: vendor/github.com/google/pprof/*
 Copyright: Copyright 2014 Google Inc. All Rights Reserved.
 License: Apache-2.0
+
+Files: vendor/github.com/google/go-github/*
+Copyright: Copyright (c) 2013 The go-github AUTHORS. All rights reserved.
+License: BSD-3-Clause
+
+Files: vendor/github.com/google/go-querystring/*
+Copyright: Copyright (c) 2013 Google. All rights reserved.
+License: BSD-3-Clause

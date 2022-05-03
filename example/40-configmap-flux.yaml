@@ -9,6 +9,7 @@ metadata:
   name: flux-config
   namespace: garden-testing
 data:
+  fluxVersion: 0.29.5
   repositoryUrl: ssh://git@github.com/THE-OWNER/THE-REPO
   repositoryBranch: main
   repositoryType: private
