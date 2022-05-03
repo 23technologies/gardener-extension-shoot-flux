@@ -11,6 +11,8 @@ require (
 	github.com/gardener/gardener v1.43.1
 	github.com/go-logr/logr v1.2.2
 	github.com/google/go-github/v44 v44.0.0
+	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/gomega v1.18.1
 	github.com/spf13/cobra v1.4.0
 	golang.org/x/tools v0.1.9
 	k8s.io/api v0.23.4
