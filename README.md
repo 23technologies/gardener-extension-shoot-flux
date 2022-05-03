@@ -15,6 +15,7 @@ Please find more information regarding the extensibility concepts and a detailed
 
 - [Gardener Extension for Flux](#gardener-extension-for-flux)
 - [What does this package provide?](#what-does-this-package-provide)
+    - [Example use case](#example-use-case)
 - [How to...](#how-to)
     - [Use it as a gardener operator](#use-it-as-a-gardener-operator)
     - [Develop this extension locally](#develop-this-extension-locally)
@@ -26,10 +27,17 @@ Please find more information regarding the extensibility concepts and a detailed
 <!-- markdown-toc end -->
 
 # What does this package provide?
-
 The general idea of this controller is to install the [fluxcd](https://fluxcd.io/) controllers together with a [flux gitrepository resource](https://fluxcd.io/docs/components/source/gitrepositories/) and a [flux kustomization resource](https://fluxcd.io/docs/components/kustomize/kustomization/) into newly created shoot clusters.
 In consequence, your fresh shoot cluster will be reconciled to the state defined in the Git repository by the fluxcd controllers.
 Thus, this extension provides a general approach to install addons to shoot clusters.
+
+## Example use case
+Let's say you have a CI-workflow which needs a kubernetes cluster with some basic components, such as [cert-manager](https://cert-manager.io/) or [minio](https://min.io/).
+Thus, your CI-workflow creates a `Shoot` on which you perform all your actions.
+However, the process of creating the `Shoot` and installing the needed components takes for several minutes holding you back from effectively running your CI-pipeline.
+In this case, you can make use of this extension and pre-spawn `Shoot`s, which are automatically equipped with fluxcd and reconciled to the state defined in a Git repository.
+Of course, there is a trade-off, as your pre-spawned shoots will consume some resources (either in terms of money, if running in a public cloud, or in terms of physical resources).
+However, in certain scenarios, this approach will dramatically improve the effectiveness of you CI-workflow.
 
 # How to...
 
