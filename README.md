@@ -153,6 +153,6 @@ Actually, we are just using the `Secret` containing the `gardenlet-kubeconfig` w
 Of course, this is not a rock solid solution, but it was an easy way to achieve the overall goal by simple means.
 
 # Last remarks
-This extensions is still in a preliminary state and contains e.g. hard-coded links to the release of fluxcd. 
+This extensions is still in a preliminary state and contains some hacks.
 However, the work and testing is still ongoing and the extension will be continuously improved.
 In general, you could consider the current state of the extension as kind of a minimal working example for Gardener extensions, as it is very low complex to this point.
