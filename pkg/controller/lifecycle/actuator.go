@@ -208,14 +208,14 @@ func createShootResourceFluxInstall(fluxVersion string) (map[string][]byte, erro
 }
 
 // createShootResourceFluxConfig ...
-func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNamespace string, repoconfig map[string]string) (map[string][]byte, error) {
+func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNamespace string, fluxconfig map[string]string) (map[string][]byte, error) {
 
-	fluxSource := getFluxSourceData(repoconfig)
+	fluxSource := getFluxSourceData(fluxconfig)
 	fluxKustomization := getFluxKustomizationData()
 
 	shootResources := make(map[string][]byte)
 
-	if repoconfig["repositoryType"] == "private" {
+	if fluxconfig["repositoryType"] == "private" {
 
 		var fluxRepoSecretData []byte
 		var err error
@@ -238,7 +238,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 		} else {
 			// parse the repository url in order to extract the hostname
 			// which is required for the generation of an ssh keypair
-			repourl, err := url.Parse(repoconfig["repositoryUrl"])
+			repourl, err := url.Parse(fluxconfig["repositoryUrl"])
 			if err != nil {
 				return nil, err
 			}
@@ -282,7 +282,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 }
 
 // getFluxSourceSecrets ...
-func getFluxSourceData(repoconfig map[string]string) sourcecontrollerv1beta2.GitRepository {
+func getFluxSourceData(fluxconfig map[string]string) sourcecontrollerv1beta2.GitRepository {
 
 	gitrepo := sourcecontrollerv1beta2.GitRepository{
 		TypeMeta: metav1.TypeMeta{
@@ -298,9 +298,9 @@ func getFluxSourceData(repoconfig map[string]string) sourcecontrollerv1beta2.Git
 				Duration: time.Second * 30,
 			},
 			Reference: &sourcecontrollerv1beta2.GitRepositoryRef{
-				Branch: repoconfig["repositoryBranch"],
+				Branch: fluxconfig["repositoryBranch"],
 			},
-			URL: repoconfig["repositoryUrl"],
+			URL: fluxconfig["repositoryUrl"],
 		},
 		Status: sourcecontrollerv1beta2.GitRepositoryStatus{},
 	}
