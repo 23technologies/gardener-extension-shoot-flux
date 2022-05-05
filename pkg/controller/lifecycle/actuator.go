@@ -17,6 +17,7 @@ import (
 	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
+	resourcesv1alpha1 "github.com/gardener/gardener/pkg/apis/resources/v1alpha1"
 	gardenclient "github.com/gardener/gardener/pkg/client/kubernetes"
 	"github.com/gardener/gardener/pkg/extensions"
 	kutil "github.com/gardener/gardener/pkg/utils/kubernetes"
@@ -363,4 +364,33 @@ func getFluxInstallYaml(fluxVersion string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	return fluxyaml, nil
+}
+
+// setAnnotationMrFluxInstall ...
+func setAnnotationMrFluxInstall(ctx context.Context, c client.Client, extensionNamespace string) error {
+
+	mrFluxInstall := resourcesv1alpha1.ManagedResource{}
+	err := c.Get(ctx, kutil.Key(extensionNamespace, constants.ManagedResourceNameFluxInstall), &mrFluxInstall)
+	if err != nil {
+		return err
+	}
+
+	// Set the annotation
+	mrFluxInstall.Annotations = map[string]string{"resources.gardener.cloud/ignore": "true"}
+
+	err = c.Update(ctx, &mrFluxInstall)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+// existsManagedResource ...
+func existsManagedResource(ctx context.Context, c client.Client, extensionNamespace string, name string) bool {
+	mr := resourcesv1alpha1.ManagedResource{}
+	err := c.Get(ctx, kutil.Key(extensionNamespace, name), &mr)
+	if err != nil {
+		return false
+	}
+	return true
 }
