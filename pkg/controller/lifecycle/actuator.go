@@ -22,6 +22,7 @@ import (
 	"github.com/gardener/gardener/pkg/extensions"
 	kutil "github.com/gardener/gardener/pkg/utils/kubernetes"
 	managedresources "github.com/gardener/gardener/pkg/utils/managedresources"
+	"github.com/gardener/gardener/pkg/utils/retry"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/yaml"
 
@@ -79,31 +80,63 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 		a.logger.Error(err, "I was not able to determine a flux release with respect to the version you defined. Check the configmap in the garden cluster for the version.")
 		return err
 	}
-	// Create the resource for the flux installation
-	shootResourceFluxInstall, err := createShootResourceFluxInstall(fluxVersion)
-	if err != nil {
-		return err
+
+	// --------------------- Flux Installation ----------------------------
+
+	if !existsManagedResource(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall) {
+		// Create the resource for the flux installation
+		shootResourceFluxInstall, err := createShootResourceFluxInstall(fluxVersion)
+		if err != nil {
+			return err
+		}
+
+		// deploy the managed resource for the flux installatation
+		err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, true, shootResourceFluxInstall)
+		if err != nil {
+			return err
+		}
+
+		tenMinutes := 10 * time.Minute
+		timeoutShootCtx, cancelShootCtx := context.WithTimeout(ctx, tenMinutes)
+		defer cancelShootCtx()
+		err = managedresources.WaitUntilHealthy(timeoutShootCtx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall)
+		if err != nil {
+			a.logger.Error(err, "I was not able to get the manages resource for the flux installation healthy within 10 minutes. I will delete the manged resource now. You can have another try by reconciling your shoot.")
+
+			managedresources.SetKeepObjects(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, false)
+			managedresources.DeleteForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall)
+
+			return err
+		}
+
+		// Annotate the managed resource for the flux installation with resources.gardener.cloud/ignore=true
+		// This enables the user of the shoot to modify the flux resources, which should be allowed in general,
+		// as the extension would be too restrictive otherwise
+		retry.Until(ctx, time.Second, func(ctx context.Context) (done bool, err error) {
+
+			if err := setAnnotationMrFluxInstall(ctx, a.client, extensionNamespace); err != nil {
+				return retry.MinorError(err)
+			}
+			return retry.Ok()
+		})
 	}
 
-	// deploy the managed resource for the flux installatation
-	err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, true, shootResourceFluxInstall)
-	if err != nil {
-		return err
-	}
+	// --------------------- Flux Configuration----------------------------
 
-	// create the resources for the flux configuration
-	shootResourceFluxConfig, err := a.createShootResourceFluxConfig(ctx, projectNamespace, fluxConfigMap.Data)
-	if err != nil {
-		return err
-	}
-	a.logger.Info("Please add the (public) deploy key to your git repository, you can find it in the secret")
+	if !existsManagedResource(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig) {
+		// create the resources for the flux configuration
+		shootResourceFluxConfig, err := a.createShootResourceFluxConfig(ctx, projectNamespace, fluxConfigMap.Data)
+		if err != nil {
+			return err
+		}
+		a.logger.Info("Please add the (public) deploy key to your git repository, you can find it in the secret")
 
-	// deploy the managed resource for the flux configuration
-	err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig, true, shootResourceFluxConfig)
-	if err != nil {
-		return err
+		// deploy the managed resource for the flux configuration
+		err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig, true, shootResourceFluxConfig)
+		if err != nil {
+			return err
+		}
 	}
-
 	// return whether an error ocurred
 	return err
 }
