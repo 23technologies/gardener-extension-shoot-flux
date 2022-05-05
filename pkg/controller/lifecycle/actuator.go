@@ -19,6 +19,7 @@ import (
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	gardenclient "github.com/gardener/gardener/pkg/client/kubernetes"
 	"github.com/gardener/gardener/pkg/extensions"
+	kutil "github.com/gardener/gardener/pkg/utils/kubernetes"
 	managedresources "github.com/gardener/gardener/pkg/utils/managedresources"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/yaml"
@@ -66,13 +67,8 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 	projectNamespace := shoot.GetNamespace()
 
 	// fetch the configmap holding the per-project configuration for the current flux installation
-	fluxConfig := client.ObjectKey{
-		Namespace: projectNamespace,
-		Name:      "flux-config",
-	}
-
 	fluxConfigMap := corev1.ConfigMap{}
-	err = a.clientGardenlet.Get(ctx, fluxConfig, &fluxConfigMap)
+	err = a.clientGardenlet.Get(ctx, kutil.Key(projectNamespace, "flux-config"), &fluxConfigMap)
 	if err != nil {
 		return err
 	}
@@ -208,7 +204,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 		// First, we need to check whether the source secret already exists in the projectNamespace.
 		// If so, copy the data over to the per shoot secret data. Otherwise, create a new secret and
 		// deploy it to the projectNamespace and use it for the managed resource.
-		if a.clientGardenlet.Get(ctx, client.ObjectKey{Namespace: projectNamespace, Name: constants.FluxSourceSecretName}, &fluxRepoSecret) == nil {
+		if a.clientGardenlet.Get(ctx, kutil.Key(projectNamespace, constants.FluxSourceSecretName), &fluxRepoSecret) == nil {
 			fluxRepoSecret.APIVersion = "v1"
 			fluxRepoSecret.Kind = "Secret"
 			fluxRepoSecret.ObjectMeta = metav1.ObjectMeta{
