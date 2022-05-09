@@ -114,7 +114,7 @@ This overall workflow is depicted in the block diagram below.
                  │                                                         │            │
                  └────────┬────────────────────────────────────────────────┘            │
                           │                           ▲                                 │configures
-                          │delploys                   │                                 │SSH-key
+                          │deploys                    │                                 │SSH-key
                           │Configmap                  │read SSH-key                     │
                           │                           │                                 │
                           ▼                           │                                 │
