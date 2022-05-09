@@ -105,48 +105,49 @@ From this basis, a Gardener operator can track the configuration of `Shoot` clus
 This overall workflow is depicted in the block diagram below.
 
 ```
-                      +--------------------------------------------------------+
-                      |  Gardener operator                                     |
-                      +--------------------------------------------------------+
-                      |  - A human being                                       +-----------------------+
-                      |                                                        |                       |
-                      |                                                        |                       |
-                      +-----+--------------------------------------------------+                       |configures SSH-key
-                            |                  ^                                                       |
-                            |                  |                                                       |
-                            |delploys          |read SSH-key                                           |
-                            |Configmap         |                                                       |
-                            |                  |                                                       |
-                            v                  |                                                       |
-                      +------------------------+--------------------------------+                      v
-                      |Garden cluster                                           |           +------------------------------------+
-                      +-------------------------+------------------------+------+           |Git repository                      |
-                      |Projetct 1               |Project 2               |...   |           +------------------------------------+
-                      +-------------------------+------------------------+------+           |                                    |
-                      |- Configmap containing   |- Configmap containing  |      |           |- Configuration for shoot clusters  |
-                      |  flux configuration     |  flux configuration    |      |           |                                    |
-                      |                         |                        |...   |           |                                    |
-             +------->|- ControllerRegistration |- ControllerRegistration|      |           |                                    |
-             |        |                         |                        |      |           |                                    |
-             |        |- Shoot with extension   |- Shoot with extension  |      |           +------------------------------------+
-             |        |  enabled                |  enabled               |      |                ^
-             |        +-------------------------+------------------------+------+                |
-read config  |                                                                                   |
-and generate |                                                                                   |reconcile
-SSH-keys     |                                                                                   |
-             |        +----------------------+         +------------------------+                |
-             |        |Seed cluster          |         |Shoot cluster           |                |
-             |        +----------------------+         +-------------------+----+                |
-             |        |- Controller watching |         |- Flux controllers +----+----------------+
-             +--------+> extension resource  |         |                        |
-                      |     |                |         |- GitRepository resource|
-                      |     |deploys         |         |                        |
-                      |     |                |         |- A main kustomization  |
-                      |     v                |         |                        |
-                      |- Managed resources   |         |                        |
-                      |  for flux controllers|         |                        |
-                      |  and flux config     |         |                        |
-                      +----------------------+         +------------------------+
+                   ┌─────────────────────────────────────────────────────────┐
+                   │ Gardener operator                                       │
+                   ├─────────────────────────────────────────────────────────┤
+                   │ - A human being                                         │
+                   │                                                         ├───────────────┐
+                   │                                                         │               │
+                   │                                                         │               │
+                   └────────┬────────────────────────────────────────────────┘               │
+                            │                           ▲                                    │configures
+                            │delploys                   │                                    │SSH-key
+                            │Configmap                  │read SSH-key                        │
+                            │                           │                                    │
+                            ▼                           │                                    │
+                   ┌────────────────────────────────────┴────────────────────┐               │
+                   │ Garden cluster                                          │               │
+                   ├────────────────────────┬─────────────────────────┬──────┤               │
+                   │ Projetct 1             │ Project 2               │ ...  │               ▼
+                   ├────────────────────────┼─────────────────────────┼──────┤    ┌─────────────────────┐
+                   │- Configmap containing  │- Configmap containing   │      │    │ Git repository      │
+                   │  flux configuration    │  flux configuration     │      │    ├─────────────────────┤
+                   │                        │                         │      │    │ - Configuration for │
+            ┌─────►│- ControllerRegistration│- ControllerRegistration │ ...  │    │   shoot clusters    │
+            │      │                        │                         │      │    └─────────────────────┘
+            │      │- Shoot with extension  │- Shoot with extension   │      │               ▲
+            │      │  enabled               │  enabled                │      │               │
+            │      │                        │                         │      │               │
+read config │      │                        │                         │      │               │
+and generate│      └────────────────────────┴─────────────────────────┴──────┘               │reconcile
+SSH-keys    │                                                                                │
+            │      ┌────────────────────────┐     ┌────────────────────────┐                 │
+            │      │ Seed cluster           │     │ Shoot cluster          │                 │
+            │      ├────────────────────────┤     ├────────────────────────┤                 │
+            │      │- Controller watching   │     │                        │                 │
+            └──────┼─ extension resource    │     │- Flux controllers  ────┼─────────────────┘
+                   │     │                  │     │                        │
+                   │     │deploys           │     │- GitRepository resource│
+                   │     │                  │     │                        │
+                   │     ▼                  │     │- A main kustomization  │
+                   │- Managed resources     │     │                        │
+                   │  for flux controllers  │     │                        │
+                   │  and flux config       │     │                        │
+                   │                        │     │                        │
+                   └────────────────────────┘     └────────────────────────┘
 ```
 Wait! How does the controller in the `Seed` cluster communicate to the garden cluster?
 Actually, we are just using the `Secret` containing the `gardenlet-kubeconfig` which should be available, when the gardenlet is run inside the `Seed` cluster.
