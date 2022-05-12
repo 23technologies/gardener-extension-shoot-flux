@@ -62,6 +62,10 @@ type actuator struct {
 }
 
 // Reconcile the Extension resource.
+//
+// PARAMETERS
+// ctx context.Context               Execution context
+// ex  *extensionsv1alpha1.Extension Extension struct
 func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
 
 	// get the shoot and the project namespace
@@ -143,6 +147,10 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 }
 
 // Delete the Extension resource.
+//
+// PARAMETERS
+// ctx context.Context               Execution context
+// ex  *extensionsv1alpha1.Extension Extension struct
 func (a *actuator) Delete(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
 	namespace := ex.GetNamespace()
 	twoMinutes := 2 * time.Minute
@@ -180,22 +188,36 @@ func (a *actuator) Delete(ctx context.Context, ex *extensionsv1alpha1.Extension)
 }
 
 // Restore the Extension resource.
+//
+// PARAMETERS
+// ctx context.Context               Execution context
+// ex  *extensionsv1alpha1.Extension Extension struct
 func (a *actuator) Restore(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
 	return a.Reconcile(ctx, ex)
 }
 
 // Migrate the Extension resource.
+//
+// PARAMETERS
+// ctx context.Context               Execution context
+// ex  *extensionsv1alpha1.Extension Extension struct
 func (a *actuator) Migrate(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
 	return a.Delete(ctx, ex)
 }
 
 // InjectConfig injects the rest config to this actuator.
+//
+// PARAMETERS
+// config *rest.Config Config to be injected
 func (a *actuator) InjectConfig(config *rest.Config) error {
 	a.config = config
 	return nil
 }
 
 // InjectClient injects the controller runtime client into the reconciler.
+//
+// PARAMETERS
+// client client.Client Client to be injected
 func (a *actuator) InjectClient(client client.Client) error {
 	a.client = client
 	clientInterface, _ := gardenclient.NewClientFromSecret(context.Background(), a.client, "garden", "gardenlet-kubeconfig")
@@ -204,6 +226,9 @@ func (a *actuator) InjectClient(client client.Client) error {
 }
 
 // InjectScheme injects the given scheme into the reconciler.
+//
+// PARAMETERS
+// scheme *runtime.Scheme Scheme to be injected
 func (a *actuator) InjectScheme(scheme *runtime.Scheme) error {
 	a.decoder = serializer.NewCodecFactory(scheme, serializer.EnableStrict).UniversalDecoder()
 	return nil

@@ -30,6 +30,10 @@ var (
 
 // RegisterHealthChecks registers health checks for each extension resource
 // HealthChecks are grouped by extension (e.g worker), extension.type (e.g aws) and  Health Check Type (e.g SystemComponentsHealthy)
+//
+// PARAMETERS
+// mgr  manager.Manager            Health check controller manager instance
+// opts healthcheck.DefaultAddArgs Options to add
 func RegisterHealthChecks(mgr manager.Manager, opts healthcheck.DefaultAddArgs) error {
 	return healthcheck.DefaultRegistration(
 		constants.ExtensionType,

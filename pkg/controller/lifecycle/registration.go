@@ -36,6 +36,9 @@ type AddOptions struct {
 }
 
 // AddToManager adds a Shoot Flux Lifecycle controller to the given Controller Manager.
+//
+// PARAMETERS
+// mgr  manager.Manager Lifecycle controller manager instance
 func AddToManager(mgr manager.Manager) error {
 	return extension.Add(mgr, extension.AddArgs{
 		Actuator:          NewActuator(),
