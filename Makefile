@@ -4,15 +4,14 @@
 
 EXTENSION_PREFIX            := gardener-extension
 NAME                        := shoot-flux
-REGISTRY                    := eu.gcr.io/gardener-project/gardener
-IMAGE_PREFIX                := $(REGISTRY)/extensions
+IMAGE_PREFIX                := ghcr.io/23technologies
 REPO_ROOT                   := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 HACK_DIR                    := $(REPO_ROOT)/hack
 VERSION                     := $(shell cat "$(REPO_ROOT)/VERSION")
 LD_FLAGS                    := "-w $(shell $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/get-build-ld-flags.sh k8s.io/component-base $(REPO_ROOT)/VERSION $(EXTENSION_PREFIX)-$(NAME))"
 LEADER_ELECTION             := false
 IGNORE_OPERATION_ANNOTATION := true
-KUBECONFIG									:= dev/kubeconfig.yaml
+KUBECONFIG                  := dev/kubeconfig.yaml
 
 WEBHOOK_CONFIG_PORT	:= 8444
 WEBHOOK_CONFIG_URL	:= localhost:${WEBHOOK_CONFIG_PORT}
@@ -49,10 +48,6 @@ install:
 	@LD_FLAGS=$(LD_FLAGS) \
 	$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/install.sh ./...
 
-.PHONY: docker-login
-docker-login:
-	@gcloud auth activate-service-account --key-file .kube-secrets/gcr/gcr-readwrite.json
-
 .PHONY: docker-images
 docker-images:
 	@docker build -t $(IMAGE_PREFIX)/$(NAME):$(VERSION) -t $(IMAGE_PREFIX)/$(NAME):latest -f Dockerfile -m 6g --target $(EXTENSION_PREFIX)-$(NAME) .
@@ -70,8 +65,8 @@ install-requirements:
 
 .PHONY: revendor
 revendor:
+	@GO111MODULE=on go mod tidy -compat=1.16
 	@GO111MODULE=on go mod vendor
-	@GO111MODULE=on go mod tidy
 	@chmod +x $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/*
 	@chmod +x $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/.ci/*
 	@sed -i "1 s/.*/\#\!\/usr\/bin\/env bash/" $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/get-build-ld-flags.sh
