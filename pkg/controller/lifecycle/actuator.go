@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// Package lifecycle contains functions used at the lifecycle controller
 package lifecycle
 
 import (

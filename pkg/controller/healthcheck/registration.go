@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// Package healthcheck contains functions used at the healthcheck controller
 package healthcheck
 
 import (
