@@ -6,7 +6,7 @@
 Its main principle is to leverage Kubernetes concepts for all of its tasks.
 
 This controller implements Gardener's extension contract for the `shoot-flux` extension.
-An example for a `ControllerRegistration` resource that can be used to register this controller to Gardener can be found [here](example/controller-registration.yaml).
+The latest release's `ControllerRegistration` resource that can be used to register this controller to Gardener can be found [here](https://github.com/23technologies/gardener-extension-shoot-flux/releases/latest/download/controller-registration.yaml).
 
 Please find more information regarding the extensibility concepts and a detailed proposal [here](https://github.com/gardener/gardener/blob/master/docs/proposals/01-extensibility.md).
 

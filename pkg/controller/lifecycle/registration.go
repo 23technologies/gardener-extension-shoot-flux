@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// Package lifecycle contains functions used at the lifecycle controller
 package lifecycle
 
 import (
@@ -23,7 +24,7 @@ const (
 	FinalizerSuffix = constants.ExtensionType
 )
 
-// DefaultAddOptions contains configuration for the shoot flux controller 
+// DefaultAddOptions contains configuration for the shoot flux controller
 var DefaultAddOptions = AddOptions{}
 
 // AddOptions are options to apply when adding the shoot flux controller to the manager.
@@ -35,6 +36,9 @@ type AddOptions struct {
 }
 
 // AddToManager adds a Shoot Flux Lifecycle controller to the given Controller Manager.
+//
+// PARAMETERS
+// mgr  manager.Manager Lifecycle controller manager instance
 func AddToManager(mgr manager.Manager) error {
 	return extension.Add(mgr, extension.AddArgs{
 		Actuator:          NewActuator(),

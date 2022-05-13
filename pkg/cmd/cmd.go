@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package app
+// Package cmd provides Kubernetes controller configuration structures used for command execution
+package cmd
 
 import (
 	"context"
