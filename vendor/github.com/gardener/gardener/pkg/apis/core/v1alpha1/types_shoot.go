@@ -28,6 +28,7 @@ import (
 
 // +genclient
 // +genclient:method=CreateAdminKubeconfigRequest,verb=create,subresource=adminkubeconfig,input=github.com/gardener/gardener/pkg/apis/authentication/v1alpha1.AdminKubeconfigRequest,result=github.com/gardener/gardener/pkg/apis/authentication/v1alpha1.AdminKubeconfigRequest
+// +genclient:method=UpdateBinding,verb=update,subresource=binding
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Shoot represents a Shoot cluster created and managed by Gardener.
@@ -116,7 +117,7 @@ type ShootSpec struct {
 	ExposureClassName *string `json:"exposureClassName,omitempty" protobuf:"bytes,18,opt,name=exposureClassName"`
 	// SystemComponents contains the settings of system components in the control or data plane of the Shoot cluster.
 	// +optional
-	SystemComponents *SystemComponents `json:"systemComponents" protobuf:"bytes,19,opt,name=systemComponents"`
+	SystemComponents *SystemComponents `json:"systemComponents,omitempty" protobuf:"bytes,19,opt,name=systemComponents"`
 }
 
 // ShootStatus holds the most recently observed status of the Shoot cluster.
@@ -176,6 +177,10 @@ type ShootStatus struct {
 	// Credentials contains information about the shoot credentials.
 	// +optional
 	Credentials *ShootCredentials `json:"credentials,omitempty" protobuf:"bytes,16,opt,name=credentials"`
+	// LastHibernationTriggerTime indicates the last time when the hibernation controller
+	// managed to change the hibernation settings of the cluster
+	// +optional
+	LastHibernationTriggerTime *metav1.Time `json:"lastHibernationTriggerTime,omitempty" protobuf:"bytes,17,opt,name=lastHibernationTriggerTime"`
 }
 
 // ShootCredentials contains information about the shoot credentials.
@@ -196,6 +201,15 @@ type ShootCredentialsRotation struct {
 	// SSHKeypair contains information about the ssh-keypair credential rotation.
 	// +optional
 	SSHKeypair *ShootSSHKeypairRotation `json:"sshKeypair,omitempty" protobuf:"bytes,3,opt,name=sshKeypair"`
+	// Observability contains information about the observability credential rotation.
+	// +optional
+	Observability *ShootObservabilityRotation `json:"observability,omitempty" protobuf:"bytes,4,opt,name=observability"`
+	// ServiceAccountKey contains information about the service account key credential rotation.
+	// +optional
+	ServiceAccountKey *ShootServiceAccountKeyRotation `json:"serviceAccountKey,omitempty" protobuf:"bytes,5,opt,name=serviceAccountKey"`
+	// ETCDEncryptionKey contains information about the ETCD encryption key credential rotation.
+	// +optional
+	ETCDEncryptionKey *ShootETCDEncryptionKeyRotation `json:"etcdEncryptionKey,omitempty" protobuf:"bytes,6,opt,name=etcdEncryptionKey"`
 }
 
 // ShootCARotation contains information about the certificate authority credential rotation.
@@ -227,6 +241,42 @@ type ShootSSHKeypairRotation struct {
 	// +optional
 	LastInitiationTime *metav1.Time `json:"lastInitiationTime,omitempty" protobuf:"bytes,1,opt,name=lastInitiationTime"`
 	// LastCompletionTime is the most recent time when the ssh-keypair credential rotation was successfully completed.
+	// +optional
+	LastCompletionTime *metav1.Time `json:"lastCompletionTime,omitempty" protobuf:"bytes,2,opt,name=lastCompletionTime"`
+}
+
+// ShootObservabilityRotation contains information about the observability credential rotation.
+type ShootObservabilityRotation struct {
+	// LastInitiationTime is the most recent time when the observability credential rotation was initiated.
+	// +optional
+	LastInitiationTime *metav1.Time `json:"lastInitiationTime,omitempty" protobuf:"bytes,1,opt,name=lastInitiationTime"`
+	// LastCompletionTime is the most recent time when the observability credential rotation was successfully completed.
+	// +optional
+	LastCompletionTime *metav1.Time `json:"lastCompletionTime,omitempty" protobuf:"bytes,2,opt,name=lastCompletionTime"`
+}
+
+// ShootServiceAccountKeyRotation contains information about the service account key credential rotation.
+type ShootServiceAccountKeyRotation struct {
+	// Phase describes the phase of the service account key credential rotation.
+	Phase ShootCredentialsRotationPhase `json:"phase" protobuf:"bytes,1,opt,name=phase"`
+	// LastInitiationTime is the most recent time when the service account key credential rotation was initiated.
+	// +optional
+	LastInitiationTime *metav1.Time `json:"lastInitiationTime,omitempty" protobuf:"bytes,3,opt,name=lastInitiationTime"`
+	// LastCompletionTime is the most recent time when the service account key credential rotation was successfully
+	// completed.
+	// +optional
+	LastCompletionTime *metav1.Time `json:"lastCompletionTime,omitempty" protobuf:"bytes,2,opt,name=lastCompletionTime"`
+}
+
+// ShootETCDEncryptionKeyRotation contains information about the ETCD encryption key credential rotation.
+type ShootETCDEncryptionKeyRotation struct {
+	// Phase describes the phase of the ETCD encryption key credential rotation.
+	Phase ShootCredentialsRotationPhase `json:"phase" protobuf:"bytes,1,opt,name=phase"`
+	// LastInitiationTime is the most recent time when the ETCD encryption key credential rotation was initiated.
+	// +optional
+	LastInitiationTime *metav1.Time `json:"lastInitiationTime,omitempty" protobuf:"bytes,3,opt,name=lastInitiationTime"`
+	// LastCompletionTime is the most recent time when the ETCD encryption key credential rotation was successfully
+	// completed.
 	// +optional
 	LastCompletionTime *metav1.Time `json:"lastCompletionTime,omitempty" protobuf:"bytes,2,opt,name=lastCompletionTime"`
 }
@@ -448,6 +498,10 @@ type Kubernetes struct {
 	// VerticalPodAutoscaler contains the configuration flags for the Kubernetes vertical pod autoscaler.
 	// +optional
 	VerticalPodAutoscaler *VerticalPodAutoscaler `json:"verticalPodAutoscaler,omitempty" protobuf:"bytes,9,opt,name=verticalPodAutoscaler"`
+	// EnableStaticTokenKubeconfig indicates whether static token kubeconfig secret should be present in garden cluster
+	// (default: true).
+	// +optional
+	EnableStaticTokenKubeconfig *bool `json:"enableStaticTokenKubeconfig,omitempty" protobuf:"varint,10,opt,name=enableStaticTokenKubeconfig"`
 }
 
 // ClusterAutoscaler contains the configuration flags for the Kubernetes cluster autoscaler.
@@ -639,6 +693,7 @@ type ServiceAccountConfig struct {
 	// SigningKeySecret is a reference to a secret that contains an optional private key of the
 	// service account token issuer. The issuer will sign issued ID tokens with this private key.
 	// Only useful if service account tokens are also issued by another external system.
+	// Deprecated: This field is deprecated and will be removed in a future version of Gardener. Do not use it.
 	// +optional
 	SigningKeySecret *corev1.LocalObjectReference `json:"signingKeySecretName,omitempty" protobuf:"bytes,2,opt,name=signingKeySecretName"`
 	// ExtendTokenExpiration turns on projected service account expiration extension during token generation, which
@@ -650,8 +705,7 @@ type ServiceAccountConfig struct {
 	// MaxTokenExpiration is the maximum validity duration of a token created by the service account token issuer. If an
 	// otherwise valid TokenRequest with a validity duration larger than this value is requested, a token will be issued
 	// with a validity duration of this value.
-	// This field must be within [30d,90d] when the ShootMaxTokenExpirationValidation feature gate is enabled.
-	// This field will be overwritten to be within [30d,90d] when the ShootMaxTokenExpirationOverwrite feature gate is enabled.
+	// This field must be within [30d,90d].
 	// +optional
 	MaxTokenExpiration *metav1.Duration `json:"maxTokenExpiration,omitempty" protobuf:"bytes,4,opt,name=maxTokenExpiration"`
 	// AcceptedIssuers is an additional set of issuers that are used to determine which service account tokens are accepted.
@@ -818,7 +872,24 @@ type KubeSchedulerConfig struct {
 	// of all the side-effects and consequences when changing it.
 	// +optional
 	KubeMaxPDVols *string `json:"kubeMaxPDVols,omitempty" protobuf:"bytes,2,opt,name=kubeMaxPDVols"`
+	// Profile configures the scheduling profile for the cluster.
+	// If not specified, the used profile is "balanced" (provides the default kube-scheduler behavior).
+	// +optional
+	Profile *SchedulingProfile `json:"profile,omitempty" protobuf:"bytes,3,opt,name=profile,casttype=SchedulingProfile"`
 }
+
+// SchedulingProfile is a string alias used for scheduling profile values.
+type SchedulingProfile string
+
+const (
+	// SchedulingProfileBalanced is a scheduling profile that attempts to spread Pods evenly across Nodes
+	// to obtain a more balanced resource usage. This profile provides the default kube-scheduler behavior.
+	SchedulingProfileBalanced SchedulingProfile = "balanced"
+	// SchedulingProfileBinPacking is a scheduling profile that scores Nodes based on the allocation of resources.
+	// It prioritizes Nodes with most allocated resources. This leads the Node count in the cluster to be minimized and
+	// the Node resource utilization to be increased.
+	SchedulingProfileBinPacking SchedulingProfile = "bin-packing"
+)
 
 // KubeProxyConfig contains configuration settings for the kube-proxy.
 type KubeProxyConfig struct {
@@ -1228,6 +1299,9 @@ type Machine struct {
 	// latest version of the first image stated in the referenced CloudProfile if no value has been provided.
 	// +optional
 	Image *ShootMachineImage `json:"image,omitempty" protobuf:"bytes,2,opt,name=image"`
+	// Architecture is the CPU architecture of the machines in this worker pool.
+	// +optional
+	Architecture *string `json:"architecture,omitempty" protobuf:"bytes,3,opt,name=architecture"`
 }
 
 // ShootMachineImage defines the name and the version of the shoot's machine image in any environment. Has to be
@@ -1318,13 +1392,17 @@ var (
 type SystemComponents struct {
 	// CoreDNS contains the settings of the Core DNS components running in the data plane of the Shoot cluster.
 	// +optional
-	CoreDNS *CoreDNS `json:"coreDNS" protobuf:"bytes,1,opt,name=coreDNS"`
+	CoreDNS *CoreDNS `json:"coreDNS,omitempty" protobuf:"bytes,1,opt,name=coreDNS"`
+	// NodeLocalDNS contains the settings of the node local DNS components running in the data plane of the Shoot cluster.
+	// +optional
+	NodeLocalDNS *NodeLocalDNS `json:"nodeLocalDNS,omitempty" protobuf:"bytes,2,opt,name=nodeLocalDNS"`
 }
 
 // CoreDNS contains the settings of the Core DNS components running in the data plane of the Shoot cluster.
 type CoreDNS struct {
 	// Autoscaling contains the settings related to autoscaling of the Core DNS components running in the data plane of the Shoot cluster.
-	Autoscaling *CoreDNSAutoscaling `json:"autoscaling" protobuf:"bytes,1,opt,name=autoscaling"`
+	// +optional
+	Autoscaling *CoreDNSAutoscaling `json:"autoscaling,omitempty" protobuf:"bytes,1,opt,name=autoscaling"`
 }
 
 // CoreDNSAutoscaling contains the settings related to autoscaling of the Core DNS components running in the data plane of the Shoot cluster.
@@ -1343,6 +1421,20 @@ const (
 	// CoreDNSAutoscalingModeClusterProportional is a constant for cluster-proportional Core DNS autoscaling mode.
 	CoreDNSAutoscalingModeClusterProportional CoreDNSAutoscalingMode = "cluster-proportional"
 )
+
+// NodeLocalDNS contains the settings of the node local DNS components running in the data plane of the Shoot cluster.
+type NodeLocalDNS struct {
+	// Enabled indicates whether node local DNS is enabled or not.
+	Enabled bool `json:"enabled" protobuf:"varint,1,opt,name=enabled"`
+	// ForceTCPToClusterDNS indicates whether the connection from the node local DNS to the cluster DNS (Core DNS) will be forced to TCP or not.
+	// Default, if unspecified, is to enforce TCP.
+	// +optional
+	ForceTCPToClusterDNS *bool `json:"forceTCPToClusterDNS,omitempty" protobuf:"varint,2,opt,name=forceTCPToClusterDNS"`
+	// ForceTCPToUpstreamDNS indicates whether the connection from the node local DNS to the upstream DNS (infrastructure DNS) will be forced to TCP or not.
+	// Default, if unspecified, is to enforce TCP.
+	// +optional
+	ForceTCPToUpstreamDNS *bool `json:"forceTCPToUpstreamDNS,omitempty" protobuf:"varint,3,opt,name=forceTCPToUpstreamDNS"`
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // Other/miscellaneous constants and types                                                      //

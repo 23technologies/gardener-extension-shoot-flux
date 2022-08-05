@@ -151,6 +151,9 @@ type WorkerPool struct {
 	// NodeTemplate contains resource information of the machine which is used by Cluster Autoscaler to generate nodeTemplate during scaling a nodeGroup from zero
 	// +optional
 	NodeTemplate *NodeTemplate `json:"nodeTemplate,omitempty"`
+	// Architecture is the CPU architecture of the worker pool machines and machine image.
+	// +optional
+	Architecture *string `json:"architecture,omitempty"`
 }
 
 // NodeTemplate contains information about the expected node properties.
@@ -218,6 +221,3 @@ type MachineDeployment struct {
 	// Maximum is the maximum number for this machine deployment.
 	Maximum int32 `json:"maximum"`
 }
-
-// WorkerRollingUpdate is a constant for a condition type indicating a rolling update for any worker pool of the Shoot.
-const WorkerRollingUpdate gardencorev1beta1.ConditionType = "RollingUpdate"

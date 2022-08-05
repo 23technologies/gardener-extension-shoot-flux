@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	v1alpha1constants "github.com/gardener/gardener/pkg/apis/core/v1alpha1/constants"
 	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,7 +87,11 @@ func SetDefaults_GardenletConfiguration(obj *GardenletConfiguration) {
 		obj.SNI = &SNI{}
 	}
 
-	var defaultSVCName = DefaultSNIIngresServiceName
+	if obj.ETCDConfig == nil {
+		obj.ETCDConfig = &ETCDConfig{}
+	}
+
+	var defaultSVCName = v1beta1constants.DefaultSNIIngressServiceName
 	for i, handler := range obj.ExposureClassHandlers {
 		if obj.ExposureClassHandlers[i].SNI == nil {
 			obj.ExposureClassHandlers[i].SNI = &SNI{Ingress: &SNIIngress{}}
@@ -105,8 +108,8 @@ func SetDefaults_GardenletConfiguration(obj *GardenletConfiguration) {
 		}
 		if len(obj.ExposureClassHandlers[i].SNI.Ingress.Labels) == 0 {
 			obj.ExposureClassHandlers[i].SNI.Ingress.Labels = map[string]string{
-				v1beta1constants.LabelApp:    DefaultIngressGatewayAppLabelValue,
-				v1alpha1constants.GardenRole: v1alpha1constants.GardenRoleExposureClassHandler,
+				v1beta1constants.LabelApp:   v1beta1constants.DefaultIngressGatewayAppLabelValue,
+				v1beta1constants.GardenRole: v1beta1constants.GardenRoleExposureClassHandler,
 			}
 		}
 	}
@@ -143,6 +146,9 @@ func SetDefaults_GardenletControllerConfiguration(obj *GardenletControllerConfig
 	}
 	if obj.ShootCare == nil {
 		obj.ShootCare = &ShootCareControllerConfiguration{}
+	}
+	if obj.SeedCare == nil {
+		obj.SeedCare = &SeedCareControllerConfiguration{}
 	}
 	if obj.ShootMigration == nil {
 		obj.ShootMigration = &ShootMigrationControllerConfiguration{}
@@ -343,6 +349,14 @@ func SetDefaults_ShootCareControllerConfiguration(obj *ShootCareControllerConfig
 	}
 }
 
+// SetDefaults_SeedCareControllerConfiguration sets defaults for the seed care controller.
+func SetDefaults_SeedCareControllerConfiguration(obj *SeedCareControllerConfiguration) {
+	if obj.SyncPeriod == nil {
+		v := metav1.Duration{Duration: 30 * time.Second}
+		obj.SyncPeriod = &v
+	}
+}
+
 // SetDefaults_ShootMigrationControllerConfiguration sets defaults for the shoot migration controller.
 func SetDefaults_ShootMigrationControllerConfiguration(obj *ShootMigrationControllerConfiguration) {
 	if obj.ConcurrentSyncs == nil {
@@ -442,8 +456,8 @@ func SetDefaults_SNI(obj *SNI) {
 // SetDefaults_SNIIngress sets defaults for SNI ingressgateway.
 func SetDefaults_SNIIngress(obj *SNIIngress) {
 	var (
-		defaultNS      = DefaultSNIIngresNamespace
-		defaultSVCName = DefaultSNIIngresServiceName
+		defaultNS      = v1beta1constants.DefaultSNIIngressNamespace
+		defaultSVCName = v1beta1constants.DefaultSNIIngressServiceName
 	)
 
 	if obj.Namespace == nil {
@@ -456,7 +470,7 @@ func SetDefaults_SNIIngress(obj *SNIIngress) {
 
 	if obj.Labels == nil {
 		obj.Labels = map[string]string{
-			v1beta1constants.LabelApp: DefaultIngressGatewayAppLabelValue,
+			v1beta1constants.LabelApp: v1beta1constants.DefaultIngressGatewayAppLabelValue,
 			"istio":                   "ingressgateway",
 		}
 	}
@@ -478,5 +492,33 @@ func SetDefaults_Logging(obj *Logging) {
 	}
 	if obj.Loki.Garden.Storage == nil {
 		obj.Loki.Garden.Storage = &DefaultCentralLokiStorage
+	}
+}
+
+// SetDefaults_ETCDConfig sets defaults for the ETCD.
+func SetDefaults_ETCDConfig(obj *ETCDConfig) {
+	if obj.ETCDController == nil {
+		obj.ETCDController = &ETCDController{}
+	}
+	if obj.ETCDController.Workers == nil {
+		obj.ETCDController.Workers = pointer.Int64(50)
+	}
+	if obj.CustodianController == nil {
+		obj.CustodianController = &CustodianController{}
+	}
+	if obj.CustodianController.Workers == nil {
+		obj.CustodianController.Workers = pointer.Int64(10)
+	}
+	if obj.BackupCompactionController == nil {
+		obj.BackupCompactionController = &BackupCompactionController{}
+	}
+	if obj.BackupCompactionController.Workers == nil {
+		obj.BackupCompactionController.Workers = pointer.Int64(3)
+	}
+	if obj.BackupCompactionController.EnableBackupCompaction == nil {
+		obj.BackupCompactionController.EnableBackupCompaction = pointer.Bool(false)
+	}
+	if obj.BackupCompactionController.EventsThreshold == nil {
+		obj.BackupCompactionController.EventsThreshold = pointer.Int64(1000000)
 	}
 }

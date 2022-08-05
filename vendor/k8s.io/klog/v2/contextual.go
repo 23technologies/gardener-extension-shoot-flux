@@ -42,9 +42,9 @@ var (
 	// none is available.
 	globalLogger *Logger
 
-	// contextualLogger defines whether globalLogger may get called
-	// directly.
-	contextualLogger bool
+	// globalLoggerOptions contains the options that were supplied for
+	// globalLogger.
+	globalLoggerOptions loggerOptions
 
 	// klogLogger is used as fallback for logging through the normal klog code
 	// when no Logger is set.
@@ -80,54 +80,37 @@ func SetLogger(logger logr.Logger) {
 // Supporting direct calls is recommended because it avoids the overhead of
 // routing log entries through klogr into klog and then into the actual Logger
 // backend.
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func SetLoggerWithOptions(logger logr.Logger, opts ...LoggerOption) {
 	globalLogger = &logger
-	var o loggerOptions
+	globalLoggerOptions = loggerOptions{}
 	for _, opt := range opts {
-		opt(&o)
+		opt(&globalLoggerOptions)
 	}
-	contextualLogger = o.contextualLogger
 }
 
 // ContextualLogger determines whether the logger passed to
 // SetLoggerWithOptions may also get called directly. Such a logger cannot rely
 // on verbosity checking in klog.
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func ContextualLogger(enabled bool) LoggerOption {
 	return func(o *loggerOptions) {
 		o.contextualLogger = enabled
 	}
 }
 
+// FlushLogger provides a callback for flushing data buffered by the logger.
+func FlushLogger(flush func()) LoggerOption {
+	return func(o *loggerOptions) {
+		o.flush = flush
+	}
+}
+
 // LoggerOption implements the functional parameter paradigm for
 // SetLoggerWithOptions.
-//
-// Experimental
-//
-// Notice: This type is EXPERIMENTAL and may be changed or removed in a
-// later release.
 type LoggerOption func(o *loggerOptions)
 
 type loggerOptions struct {
 	contextualLogger bool
-}
-
-// SetContextualLogger does the same as SetLogger, but in addition the
-// logger may also get called directly by code that retrieves it
-// with FromContext, TODO or Background. The logger therefore must
-// implements its own verbosity checking.
-func SetContextualLogger(logger logr.Logger) {
-	globalLogger = &logger
-	contextualLogger = true
+	flush            func()
 }
 
 // ClearLogger removes a backing Logger implementation if one was set earlier
@@ -137,6 +120,7 @@ func SetContextualLogger(logger logr.Logger) {
 // goroutines invoke log calls, usually during program initialization.
 func ClearLogger() {
 	globalLogger = nil
+	globalLoggerOptions = loggerOptions{}
 }
 
 // EnableContextualLogging controls whether contextual logging is enabled.
@@ -147,11 +131,6 @@ func ClearLogger() {
 // to avoid the additional overhead for contextual logging.
 //
 // This must be called during initialization before goroutines are started.
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func EnableContextualLogging(enabled bool) {
 	contextualLoggingEnabled = enabled
 }
@@ -159,11 +138,6 @@ func EnableContextualLogging(enabled bool) {
 // FromContext retrieves a logger set by the caller or, if not set,
 // falls back to the program's global logger (a Logger instance or klog
 // itself).
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func FromContext(ctx context.Context) Logger {
 	if contextualLoggingEnabled {
 		if logger, err := logr.FromContext(ctx); err == nil {
@@ -177,11 +151,6 @@ func FromContext(ctx context.Context) Logger {
 // TODO can be used as a last resort by code that has no means of
 // receiving a logger from its caller. FromContext or an explicit logger
 // parameter should be used instead.
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func TODO() Logger {
 	return Background()
 }
@@ -190,13 +159,10 @@ func TODO() Logger {
 // that logger was initialized by the program and not by code that should
 // better receive a logger via its parameters. TODO can be used as a temporary
 // solution for such code.
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func Background() Logger {
-	if globalLogger != nil && contextualLogger {
+	if globalLoggerOptions.contextualLogger {
+		// Is non-nil because globalLoggerOptions.contextualLogger is
+		// only true if a logger was set.
 		return *globalLogger
 	}
 
@@ -205,11 +171,6 @@ func Background() Logger {
 
 // LoggerWithValues returns logger.WithValues(...kv) when
 // contextual logging is enabled, otherwise the logger.
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func LoggerWithValues(logger Logger, kv ...interface{}) Logger {
 	if contextualLoggingEnabled {
 		return logger.WithValues(kv...)
@@ -219,11 +180,6 @@ func LoggerWithValues(logger Logger, kv ...interface{}) Logger {
 
 // LoggerWithName returns logger.WithName(name) when contextual logging is
 // enabled, otherwise the logger.
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func LoggerWithName(logger Logger, name string) Logger {
 	if contextualLoggingEnabled {
 		return logger.WithName(name)
@@ -233,11 +189,6 @@ func LoggerWithName(logger Logger, name string) Logger {
 
 // NewContext returns logr.NewContext(ctx, logger) when
 // contextual logging is enabled, otherwise ctx.
-//
-// Experimental
-//
-// Notice: This function is EXPERIMENTAL and may be changed or removed in a
-// later release.
 func NewContext(ctx context.Context, logger Logger) context.Context {
 	if contextualLoggingEnabled {
 		return logr.NewContext(ctx, logger)

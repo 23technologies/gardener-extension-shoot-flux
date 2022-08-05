@@ -88,17 +88,25 @@ type StoreSpec struct {
 // TLSConfig hold the TLS configuration details.
 type TLSConfig struct {
 	// +required
+	TLSCASecretRef SecretReference `json:"tlsCASecretRef"`
+	// +required
 	ServerTLSSecretRef corev1.SecretReference `json:"serverTLSSecretRef"`
-	// +required
+	// +optional
 	ClientTLSSecretRef corev1.SecretReference `json:"clientTLSSecretRef"`
-	// +required
-	TLSCASecretRef corev1.SecretReference `json:"tlsCASecretRef"`
+}
+
+// SecretReference defines a reference to a secret.
+type SecretReference struct {
+	corev1.SecretReference `json:",inline"`
+	// DataKey is the name of the key in the data map containing the credentials.
+	// +optional
+	DataKey *string `json:"dataKey,omitempty"`
 }
 
 // CompressionSpec defines parameters related to compression of Snapshots(full as well as delta).
 type CompressionSpec struct {
 	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
 	// +optional
 	Policy *CompressionPolicy `json:"policy,omitempty"`
 }
@@ -121,9 +129,19 @@ type OwnerCheckSpec struct {
 	DNSCacheTTL *metav1.Duration `json:"dnsCacheTTL,omitempty"`
 }
 
-// BackupSpec defines parametes associated with the full and delta snapshots of etcd
+// LeaderElectionSpec defines parameters related to the LeaderElection configuration.
+type LeaderElectionSpec struct {
+	// ReelectionPeriod defines the Period after which leadership status of corresponding etcd is checked.
+	// +optional
+	ReelectionPeriod *metav1.Duration `json:"reelectionPeriod,omitempty"`
+	// EtcdConnectionTimeout defines the timeout duration for etcd client connection during leader election.
+	// +optional
+	EtcdConnectionTimeout *metav1.Duration `json:"etcdConnectionTimeout,omitempty"`
+}
+
+// BackupSpec defines parameters associated with the full and delta snapshots of etcd.
 type BackupSpec struct {
-	// Port define the port on which etcd-backup-restore server will exposed.
+	// Port define the port on which etcd-backup-restore server will be exposed.
 	// +optional
 	Port *int32 `json:"port,omitempty"`
 	// +optional
@@ -134,11 +152,11 @@ type BackupSpec struct {
 	// Store defines the specification of object store provider for storing backups.
 	// +optional
 	Store *StoreSpec `json:"store,omitempty"`
-	// Resources defines the compute Resources required by backup-restore container.
+	// Resources defines compute Resources required by backup-restore container.
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-	// CompactionResources defines the compute Resources required by compaction job.
+	// CompactionResources defines compute Resources required by compaction job.
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 	// +optional
 	CompactionResources *corev1.ResourceRequirements `json:"compactionResources,omitempty"`
@@ -170,6 +188,9 @@ type BackupSpec struct {
 	// is the expected one.
 	// +optional
 	OwnerCheck *OwnerCheckSpec `json:"ownerCheck,omitempty"`
+	// LeaderElection defines parameters related to the LeaderElection configuration.
+	// +optional
+	LeaderElection *LeaderElectionSpec `json:"leaderElection,omitempty"`
 }
 
 // EtcdConfig defines parameters associated etcd deployed
@@ -196,11 +217,19 @@ type EtcdConfig struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// ClientUrlTLS contains the ca, server TLS and client TLS secrets for client communication to ETCD cluster
 	// +optional
-	TLS *TLSConfig `json:"tls,omitempty"`
+	ClientUrlTLS *TLSConfig `json:"clientUrlTls,omitempty"`
+	// PeerUrlTLS contains the ca and server TLS secrets for peer communication within ETCD cluster
+	// Currently, PeerUrlTLS does not require client TLS secrets for gardener implementation of ETCD cluster.
+	// +optional
+	PeerUrlTLS *TLSConfig `json:"peerUrlTls,omitempty"`
 	// EtcdDefragTimeout defines the timeout duration for etcd defrag call
 	// +optional
 	EtcdDefragTimeout *metav1.Duration `json:"etcdDefragTimeout,omitempty"`
+	// HeartbeatDuration defines the duration for members to send heartbeats. The default value is 10s.
+	// +optional
+	HeartbeatDuration *metav1.Duration `json:"heartbeatDuration,omitempty"`
 }
 
 // SharedConfig defines parameters shared and used by Etcd as well as backup-restore sidecar.
@@ -211,6 +240,20 @@ type SharedConfig struct {
 	//AutoCompactionRetention defines the auto-compaction-retention length for etcd as well as for embedded-Etcd of backup-restore sidecar.
 	// +optional
 	AutoCompactionRetention *string `json:"autoCompactionRetention,omitempty"`
+}
+
+// SchedulingConstraints defines the different scheduling constraints that must be applied to the
+// pod spec in the etcd statefulset.
+// Currently supported constraints are Affinity and TopologySpreadConstraints.
+type SchedulingConstraints struct {
+	// Affinity defines the various affinity and anti-affinity rules for a pod
+	// that are honoured by the kube-scheduler.
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// TopologySpreadConstraints describes how a group of pods ought to spread across topology domains,
+	// that are honoured by the kube-scheduler.
+	// +optional
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // EtcdSpec defines the desired state of Etcd
@@ -229,8 +272,10 @@ type EtcdSpec struct {
 	Backup BackupSpec `json:"backup"`
 	// +optional
 	Common SharedConfig `json:"sharedConfig,omitempty"`
+	// +optional
+	SchedulingConstraints SchedulingConstraints `json:"schedulingConstraints,omitempty"`
 	// +required
-	Replicas int `json:"replicas"`
+	Replicas int32 `json:"replicas"`
 	// PriorityClassName is the name of a priority class that shall be used for the etcd pods.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`

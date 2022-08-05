@@ -45,6 +45,10 @@ const (
 	WebhookServerPortFlag = "webhook-config-server-port"
 	// WebhookCertDirFlag is the name of the command line flag to specify the webhook certificate directory.
 	WebhookCertDirFlag = "webhook-config-cert-dir"
+	// MetricsBindAddressFlag is the name of the command line flag to specify the TCP address that the controller
+	// should bind to for serving prometheus metrics.
+	// It can be set to "0" to disable the metrics serving.
+	MetricsBindAddressFlag = "metrics-bind-address"
 	// HealthBindAddressFlag is the name of the command line flag to specify the TCP address that the controller
 	// should bind to for serving health probes
 	HealthBindAddressFlag = "health-bind-address"
@@ -180,7 +184,9 @@ type ManagerOptions struct {
 	WebhookServerPort int
 	// WebhookCertDir is the directory that contains the webhook server key and certificate.
 	WebhookCertDir string
-	// HealthBindAddress is the TCP address that the controller should bind to for serving health probes
+	// MetricsBindAddress is the TCP address that the controller should bind to for serving prometheus metrics.
+	MetricsBindAddress string
+	// HealthBindAddress is the TCP address that the controller should bind to for serving health probes.
 	HealthBindAddress string
 
 	config *ManagerConfig
@@ -196,18 +202,19 @@ func (m *ManagerOptions) AddFlags(fs *pflag.FlagSet) {
 
 	fs.BoolVar(&m.LeaderElection, LeaderElectionFlag, m.LeaderElection, "Whether to use leader election or not when running this controller manager.")
 	fs.StringVar(&m.LeaderElectionResourceLock, LeaderElectionResourceLockFlag, defaultLeaderElectionResourceLock, "Which resource type to use for leader election. "+
-		"Supported options are 'endpoints', 'configmaps', 'leases', 'endpointsleases' and 'configmapsleases'.")
+		"Supported options are 'leases', 'endpointsleases' and 'configmapsleases'.")
 	fs.StringVar(&m.LeaderElectionID, LeaderElectionIDFlag, m.LeaderElectionID, "The leader election id to use.")
 	fs.StringVar(&m.LeaderElectionNamespace, LeaderElectionNamespaceFlag, m.LeaderElectionNamespace, "The namespace to do leader election in.")
 	fs.StringVar(&m.WebhookServerHost, WebhookServerHostFlag, m.WebhookServerHost, "The webhook server host.")
 	fs.IntVar(&m.WebhookServerPort, WebhookServerPortFlag, m.WebhookServerPort, "The webhook server port.")
 	fs.StringVar(&m.WebhookCertDir, WebhookCertDirFlag, m.WebhookCertDir, "The directory that contains the webhook server key and certificate.")
+	fs.StringVar(&m.MetricsBindAddress, MetricsBindAddressFlag, ":8080", "bind address for the metrics server")
 	fs.StringVar(&m.HealthBindAddress, HealthBindAddressFlag, ":8081", "bind address for the health server")
 }
 
 // Complete implements Completer.Complete.
 func (m *ManagerOptions) Complete() error {
-	m.config = &ManagerConfig{m.LeaderElection, m.LeaderElectionResourceLock, m.LeaderElectionID, m.LeaderElectionNamespace, m.WebhookServerHost, m.WebhookServerPort, m.WebhookCertDir, m.HealthBindAddress}
+	m.config = &ManagerConfig{m.LeaderElection, m.LeaderElectionResourceLock, m.LeaderElectionID, m.LeaderElectionNamespace, m.WebhookServerHost, m.WebhookServerPort, m.WebhookCertDir, m.MetricsBindAddress, m.HealthBindAddress}
 	return nil
 }
 
@@ -232,7 +239,9 @@ type ManagerConfig struct {
 	WebhookServerPort int
 	// WebhookCertDir is the directory that contains the webhook server key and certificate.
 	WebhookCertDir string
-	// HealthBindAddress is the TCP address that the controller should bind to for serving health probes
+	// MetricsBindAddress is the TCP address that the controller should bind to for serving prometheus metrics.
+	MetricsBindAddress string
+	// HealthBindAddress is the TCP address that the controller should bind to for serving health probes.
 	HealthBindAddress string
 }
 
@@ -245,6 +254,7 @@ func (c *ManagerConfig) Apply(opts *manager.Options) {
 	opts.Host = c.WebhookServerHost
 	opts.Port = c.WebhookServerPort
 	opts.CertDir = c.WebhookCertDir
+	opts.MetricsBindAddress = c.MetricsBindAddress
 	opts.HealthProbeBindAddress = c.HealthBindAddress
 }
 
