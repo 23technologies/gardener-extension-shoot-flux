@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright (c) 2022 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 #
@@ -31,8 +31,11 @@ fi
 
 versions=("$1" "$2")
 
-out_dir=dev/temp
-mkdir -p "${out_dir}"
+out_dir=$(mktemp -d)
+function cleanup_output {
+    rm -rf "$out_dir"
+}
+trap cleanup_output EXIT
 
 kcm_dir="cmd/kube-controller-manager/app"
 ccm_dir="staging/src/k8s.io/cloud-provider/app"

@@ -65,7 +65,7 @@ install-requirements:
 
 .PHONY: revendor
 revendor:
-	@GO111MODULE=on go mod tidy -compat=1.16
+	@GO111MODULE=on go mod tidy -compat=1.18
 	@GO111MODULE=on go mod vendor
 	@chmod +x $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/*
 	@chmod +x $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/.ci/*

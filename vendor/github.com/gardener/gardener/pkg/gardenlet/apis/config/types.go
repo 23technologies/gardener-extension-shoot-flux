@@ -130,6 +130,8 @@ type GardenletControllerConfiguration struct {
 	Shoot *ShootControllerConfiguration
 	// ShootCare defines the configuration of the ShootCare controller.
 	ShootCare *ShootCareControllerConfiguration
+	// SeedCare defines the configuration of the SeedCare controller.
+	SeedCare *SeedCareControllerConfiguration
 	// ShootMigration defines the configuration of the ShootMigration controller.
 	ShootMigration *ShootMigrationControllerConfiguration
 	// ShootStateSync defines the configuration of the ShootState controller.
@@ -268,6 +270,20 @@ type ShootCareControllerConfiguration struct {
 	StaleExtensionHealthChecks *StaleExtensionHealthChecks
 	// ConditionThresholds defines the condition threshold per condition type.
 	ConditionThresholds []ConditionThreshold
+	// WebhookRemediatorEnabled specifies whether the remediator for webhooks not following the Kubernetes best
+	// practices (https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#best-practices-and-warnings)
+	// is enabled.
+	WebhookRemediatorEnabled *bool
+}
+
+// SeedCareControllerConfiguration defines the configuration of the SeedCare
+// controller.
+type SeedCareControllerConfiguration struct {
+	// SyncPeriod is the duration how often the existing resources are reconciled (how
+	// often the health check of Seed clusters is performed.
+	SyncPeriod *metav1.Duration
+	// ConditionThresholds defines the condition threshold per condition type.
+	ConditionThresholds []ConditionThreshold
 }
 
 // ShootMigrationControllerConfiguration defines the configuration of the ShootMigration
@@ -370,6 +386,14 @@ type FluentBit struct {
 	// OutputSection defines [OUTPUT] configuration for the fluent-bit.
 	// If it is nil, fluent-bit uses default output configuration.
 	OutputSection *string
+	// NetworkPolicy defines settings for the fluent-bit NetworkPolicy.
+	NetworkPolicy *FluentBitNetworkPolicy
+}
+
+// FluentBitNetworkPolicy defines settings for the fluent-bit NetworkPolicy.
+type FluentBitNetworkPolicy struct {
+	// AdditionalEgressIPBlocks contains IP CIDRs for the egress network policy.
+	AdditionalEgressIPBlocks []string
 }
 
 // Loki contains configuration for the Loki.
@@ -472,6 +496,8 @@ type ETCDConfig struct {
 	CustodianController *CustodianController
 	// BackupCompactionController contains config specific to backup compaction controller
 	BackupCompactionController *BackupCompactionController
+	// BackupLeaderElection contains configuration for the leader election for the etcd backup-restore sidecar.
+	BackupLeaderElection *ETCDBackupLeaderElection
 }
 
 // ETCDController contains config specific to ETCD controller
@@ -502,6 +528,14 @@ type BackupCompactionController struct {
 	// ActiveDeadlineDuration defines duration after which a running backup compaction job will be killed
 	// Defaults to 3 hours
 	ActiveDeadlineDuration *metav1.Duration
+}
+
+// ETCDBackupLeaderElection contains configuration for the leader election for the etcd backup-restore sidecar.
+type ETCDBackupLeaderElection struct {
+	// ReelectionPeriod defines the Period after which leadership status of corresponding etcd is checked.
+	ReelectionPeriod *metav1.Duration
+	// EtcdConnectionTimeout defines the timeout duration for etcd client connection during leader election.
+	EtcdConnectionTimeout *metav1.Duration
 }
 
 // ExposureClassHandler contains configuration for an exposure class handler.

@@ -40,14 +40,6 @@ import (
 	versionutils "github.com/gardener/gardener/pkg/utils/version"
 )
 
-var (
-	// UseCachedRuntimeClients is a flag for enabling cached controller-runtime clients. The CachedRuntimeClients feature
-	// gate (enabled by default sinde v1.34) causes this flag to be set to true.
-	// If enabled, the client returned by Interface.Client() will be backed by Interface.Cache(), otherwise it will talk
-	// directly to the API server.
-	UseCachedRuntimeClients = false
-)
-
 const (
 	// KubeConfig is the key to the kubeconfig
 	KubeConfig = "kubeconfig"
@@ -248,6 +240,7 @@ var supportedKubernetesVersions = []string{
 	"1.21",
 	"1.22",
 	"1.23",
+	"1.24",
 }
 
 func checkIfSupportedKubernetesVersion(gitVersion string) error {
@@ -301,7 +294,7 @@ func newClientSet(conf *Config) (Interface, error) {
 	}
 
 	var runtimeClient client.Client
-	if UseCachedRuntimeClients && !conf.disableCache {
+	if !conf.disableCache {
 		delegatingClient, err := client.NewDelegatingClient(client.NewDelegatingClientInput{
 			CacheReader:     runtimeCache,
 			Client:          c,

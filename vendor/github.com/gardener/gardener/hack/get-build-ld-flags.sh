@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
 PACKAGE_PATH="${1:-k8s.io/component-base}"
 VERSION_PATH="${2:-$(dirname $0)/../VERSION}"
 PROGRAM_NAME="${3:-Gardener}"

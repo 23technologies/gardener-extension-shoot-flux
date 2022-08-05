@@ -176,6 +176,14 @@ func SetDefaults_Shoot(obj *Shoot) {
 		obj.Spec.Kubernetes.KubeControllerManager.NodeMonitorGracePeriod = &metav1.Duration{Duration: 2 * time.Minute}
 	}
 
+	if obj.Spec.Kubernetes.KubeScheduler == nil {
+		obj.Spec.Kubernetes.KubeScheduler = &KubeSchedulerConfig{}
+	}
+	if obj.Spec.Kubernetes.KubeScheduler.Profile == nil {
+		defaultProfile := SchedulingProfileBalanced
+		obj.Spec.Kubernetes.KubeScheduler.Profile = &defaultProfile
+	}
+
 	if obj.Spec.Kubernetes.KubeProxy == nil {
 		obj.Spec.Kubernetes.KubeProxy = &KubeProxyConfig{}
 	}
@@ -185,6 +193,10 @@ func SetDefaults_Shoot(obj *Shoot) {
 	}
 	if obj.Spec.Kubernetes.KubeProxy.Enabled == nil {
 		obj.Spec.Kubernetes.KubeProxy.Enabled = pointer.Bool(true)
+	}
+
+	if obj.Spec.Kubernetes.EnableStaticTokenKubeconfig == nil {
+		obj.Spec.Kubernetes.EnableStaticTokenKubeconfig = pointer.Bool(true)
 	}
 
 	if obj.Spec.Addons == nil {
@@ -264,6 +276,10 @@ func SetDefaults_Shoot(obj *Shoot) {
 		kubernetesVersion := obj.Spec.Kubernetes.Version
 		if worker.Kubernetes != nil && worker.Kubernetes.Version != nil {
 			kubernetesVersion = *worker.Kubernetes.Version
+		}
+
+		if worker.Machine.Architecture == nil {
+			obj.Spec.Provider.Workers[i].Machine.Architecture = pointer.String(v1beta1constants.ArchitectureAMD64)
 		}
 
 		if k8sVersionGreaterOrEqualThan122, _ := versionutils.CompareVersions(kubernetesVersion, ">=", "1.22"); !k8sVersionGreaterOrEqualThan122 {

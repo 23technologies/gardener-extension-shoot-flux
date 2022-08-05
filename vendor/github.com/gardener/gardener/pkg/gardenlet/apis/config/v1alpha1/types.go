@@ -164,6 +164,9 @@ type GardenletControllerConfiguration struct {
 	// ShootCare defines the configuration of the ShootCare controller.
 	// +optional
 	ShootCare *ShootCareControllerConfiguration `json:"shootCare,omitempty"`
+	// SeedCare defines the configuration of the SeedCare controller.
+	// +optional
+	SeedCare *SeedCareControllerConfiguration `json:"seedCare,omitempty"`
 	// ShootMigration defines the configuration of the ShootMigration controller.
 	// +optional
 	ShootMigration *ShootMigrationControllerConfiguration `json:"shootMigration,omitempty"`
@@ -335,6 +338,23 @@ type ShootCareControllerConfiguration struct {
 	// ConditionThresholds defines the condition threshold per condition type.
 	// +optional
 	ConditionThresholds []ConditionThreshold `json:"conditionThresholds,omitempty"`
+	// WebhookRemediatorEnabled specifies whether the remediator for webhooks not following the Kubernetes best
+	// practices (https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#best-practices-and-warnings)
+	// is enabled.
+	// +optional
+	WebhookRemediatorEnabled *bool `json:"webhookRemediatorEnabled,omitempty"`
+}
+
+// SeedCareControllerConfiguration defines the configuration of the SeedCare
+// controller.
+type SeedCareControllerConfiguration struct {
+	// SyncPeriod is the duration how often the existing resources are reconciled (how
+	// often the health check of Seed clusters is performed
+	// +optional
+	SyncPeriod *metav1.Duration `json:"syncPeriod,omitempty"`
+	// ConditionThresholds defines the condition threshold per condition type.
+	// +optional
+	ConditionThresholds []ConditionThreshold `json:"conditionThresholds,omitempty"`
 }
 
 // ShootMigrationControllerConfiguration defines the configuration of the ShootMigration
@@ -455,6 +475,16 @@ type FluentBit struct {
 	// If it is nil, fluent-bit uses default output configuration.
 	// +optional
 	OutputSection *string `json:"output,omitempty" yaml:"output,omitempty"`
+	// NetworkPolicy defines settings for the fluent-bit NetworkPolicy.
+	// +optional
+	NetworkPolicy *FluentBitNetworkPolicy `json:"networkPolicy,omitempty" yaml:"networkPolicy,omitempty"`
+}
+
+// FluentBitNetworkPolicy defines settings for the fluent-bit NetworkPolicy.
+type FluentBitNetworkPolicy struct {
+	// AdditionalEgressIPBlocks contains IP CIDRs for the egress network policy.
+	// +optional
+	AdditionalEgressIPBlocks []string `json:"additionalEgressIPBlocks,omitempty" yaml:"additionalEgressIPBlocks,omitempty"`
 }
 
 // Loki contains configuration for the Loki.
@@ -575,6 +605,9 @@ type ETCDConfig struct {
 	// BackupCompactionController contains config specific to backup compaction controller
 	// +optional
 	BackupCompactionController *BackupCompactionController `json:"backupCompactionController,omitempty"`
+	// BackupLeaderElection contains configuration for the leader election for the etcd backup-restore sidecar.
+	// +optional
+	BackupLeaderElection *ETCDBackupLeaderElection `json:"backupLeaderElection,omitempty"`
 }
 
 // ETCDController contains config specific to ETCD controller
@@ -611,6 +644,16 @@ type BackupCompactionController struct {
 	// Defaults to 3 hours
 	// +optional
 	ActiveDeadlineDuration *metav1.Duration `json:"activeDeadlineDuration,omitempty"`
+}
+
+// ETCDBackupLeaderElection contains configuration for the leader election for the etcd backup-restore sidecar.
+type ETCDBackupLeaderElection struct {
+	// ReelectionPeriod defines the Period after which leadership status of corresponding etcd is checked.
+	// +optional
+	ReelectionPeriod *metav1.Duration `json:"reelectionPeriod,omitempty"`
+	// EtcdConnectionTimeout defines the timeout duration for etcd client connection during leader election.
+	// +optional
+	EtcdConnectionTimeout *metav1.Duration `json:"etcdConnectionTimeout,omitempty"`
 }
 
 // ExposureClassHandler contains configuration for an exposure class handler.
@@ -690,15 +733,6 @@ const (
 
 	// DefaultControllerConcurrentSyncs is a default value for concurrent syncs for controllers.
 	DefaultControllerConcurrentSyncs = 20
-
-	// DefaultSNIIngresNamespace is the default sni ingress namespace.
-	DefaultSNIIngresNamespace = "istio-ingress"
-
-	// DefaultSNIIngresServiceName is the default sni ingress service name.
-	DefaultSNIIngresServiceName = "istio-ingressgateway"
-
-	// DefaultIngressGatewayAppLabelValue is the ingress gateway value for the app label.
-	DefaultIngressGatewayAppLabelValue = "istio-ingressgateway"
 
 	// LogLevelDebug is the debug log level, i.e. the most verbose.
 	LogLevelDebug = "debug"

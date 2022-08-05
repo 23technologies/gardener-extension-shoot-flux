@@ -83,9 +83,12 @@ func defaultSubject(obj *rbacv1.Subject) {
 
 // SetDefaults_MachineType sets default values for MachineType objects.
 func SetDefaults_MachineType(obj *MachineType) {
+	if obj.Architecture == nil {
+		obj.Architecture = pointer.String(v1beta1constants.ArchitectureAMD64)
+	}
+
 	if obj.Usable == nil {
-		trueVar := true
-		obj.Usable = &trueVar
+		obj.Usable = pointer.Bool(true)
 	}
 }
 
@@ -176,6 +179,14 @@ func SetDefaults_Shoot(obj *Shoot) {
 		obj.Spec.Kubernetes.KubeControllerManager.NodeMonitorGracePeriod = &metav1.Duration{Duration: 2 * time.Minute}
 	}
 
+	if obj.Spec.Kubernetes.KubeScheduler == nil {
+		obj.Spec.Kubernetes.KubeScheduler = &KubeSchedulerConfig{}
+	}
+	if obj.Spec.Kubernetes.KubeScheduler.Profile == nil {
+		defaultProfile := SchedulingProfileBalanced
+		obj.Spec.Kubernetes.KubeScheduler.Profile = &defaultProfile
+	}
+
 	if obj.Spec.Kubernetes.KubeProxy == nil {
 		obj.Spec.Kubernetes.KubeProxy = &KubeProxyConfig{}
 	}
@@ -185,6 +196,10 @@ func SetDefaults_Shoot(obj *Shoot) {
 	}
 	if obj.Spec.Kubernetes.KubeProxy.Enabled == nil {
 		obj.Spec.Kubernetes.KubeProxy.Enabled = pointer.Bool(true)
+	}
+
+	if obj.Spec.Kubernetes.EnableStaticTokenKubeconfig == nil {
+		obj.Spec.Kubernetes.EnableStaticTokenKubeconfig = pointer.Bool(true)
 	}
 
 	if obj.Spec.Addons == nil {
@@ -264,6 +279,10 @@ func SetDefaults_Shoot(obj *Shoot) {
 		kubernetesVersion := obj.Spec.Kubernetes.Version
 		if worker.Kubernetes != nil && worker.Kubernetes.Version != nil {
 			kubernetesVersion = *worker.Kubernetes.Version
+		}
+
+		if worker.Machine.Architecture == nil {
+			obj.Spec.Provider.Workers[i].Machine.Architecture = pointer.String(v1beta1constants.ArchitectureAMD64)
 		}
 
 		if k8sVersionGreaterOrEqualThan122, _ := versionutils.CompareVersions(kubernetesVersion, ">=", "1.22"); !k8sVersionGreaterOrEqualThan122 {
@@ -410,6 +429,13 @@ func SetDefaults_ControllerRegistrationDeployment(obj *ControllerRegistrationDep
 	p := ControllerDeploymentPolicyOnDemand
 	if obj.Policy == nil {
 		obj.Policy = &p
+	}
+}
+
+// SetDefaults_MachineImageVersion sets default values for MachineImageVersion objects.
+func SetDefaults_MachineImageVersion(obj *MachineImageVersion) {
+	if len(obj.Architectures) == 0 {
+		obj.Architectures = []string{v1beta1constants.ArchitectureAMD64}
 	}
 }
 
