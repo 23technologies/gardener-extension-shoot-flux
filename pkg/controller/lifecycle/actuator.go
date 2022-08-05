@@ -220,7 +220,10 @@ func (a *actuator) InjectConfig(config *rest.Config) error {
 // client client.Client Client to be injected
 func (a *actuator) InjectClient(client client.Client) error {
 	a.client = client
-	clientInterface, _ := gardenclient.NewClientFromSecret(context.Background(), a.client, "garden", "gardenlet-kubeconfig")
+	clientInterface, err := gardenclient.NewClientFromSecret(context.Background(), a.client, "garden", "gardenlet-kubeconfig")
+	if err != nil {
+		return err
+	}
 	a.clientGardenlet = clientInterface.Client()
 	return nil
 }
