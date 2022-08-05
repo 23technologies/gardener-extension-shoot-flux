@@ -224,6 +224,7 @@ func (a *actuator) InjectClient(client client.Client) error {
 	if err != nil {
 		return err
 	}
+	clientInterface.Start(context.Background())
 	a.clientGardenlet = clientInterface.Client()
 	return nil
 }
