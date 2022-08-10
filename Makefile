@@ -39,6 +39,17 @@ start:
 		--webhook-config-server-port=${WEBHOOK_CONFIG_PORT} \
 		--gardener-version="v1.39.0"
 
+.PHONY: debug
+debug:
+	@LEADER_ELECTION_NAMESPACE=garden GO111MODULE=on dlv debug\
+		./cmd/$(EXTENSION_PREFIX)-$(NAME) -- \
+		--kubeconfig=${KUBECONFIG} \
+		--ignore-operation-annotation=$(IGNORE_OPERATION_ANNOTATION) \
+		--leader-election=$(LEADER_ELECTION) \
+		--webhook-config-server-host=localhost \
+		--webhook-config-server-port=${WEBHOOK_CONFIG_PORT} \
+		--gardener-version="v1.39.0"
+
 #################################################################
 # Rules related to binary build, Docker image build and release #
 #################################################################
@@ -121,12 +132,3 @@ verify: check check-docforge format test
 
 .PHONY: verify-extended
 verify-extended: install-requirements check-generate check check-docforge format test test-cov test-clean
-
-.PHONY: get-debug-command
-get-debug-command:
-	$(info LEADER_ELECTION_NAMESPACE=garden dlv debug --build-flags "mod vendor" ./cmd/$(EXTENSION_PREFIX)-$(NAME) -- \
-		--kubeconfig=${KUBECONFIG} \
-		--ignore-operation-annotation=$(IGNORE_OPERATION_ANNOTATION) \
-		--leader-election=$(LEADER_ELECTION) \
-		--gardener-version="v1.39.0")
-	@true
