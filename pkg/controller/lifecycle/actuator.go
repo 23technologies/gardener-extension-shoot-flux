@@ -80,21 +80,20 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 		return err
 	}
 
-	fluxVersion, err := getFluxVersion(fluxConfigMap.Data)
-	if err != nil {
-		a.logger.Error(err, "I was not able to determine a flux release with respect to the version you defined. Check the configmap in the garden cluster for the version.")
-		return err
-	}
 
 	// --------------------- Flux Installation ----------------------------
-
 	if !existsManagedResource(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall) {
+
+		fluxVersion, err := getFluxVersion(fluxConfigMap.Data)
+		if err != nil {
+			a.logger.Error(err, "I was not able to determine a flux release with respect to the version you defined. Check the configmap in the garden cluster for the version.")
+			return err
+		}
 		// Create the resource for the flux installation
 		shootResourceFluxInstall, err := createShootResourceFluxInstall(fluxVersion)
 		if err != nil {
 			return err
 		}
-
 		// deploy the managed resource for the flux installatation
 		err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, true, shootResourceFluxInstall)
 		if err != nil {
