@@ -27,14 +27,24 @@ import (
 )
 
 // ScanHostKey collects the given host's preferred public key for the
-// Any errors (e.g. authentication  failures) are ignored, except if
-// no key could be collected from the host.
-func ScanHostKey(host string, timeout time.Duration) ([]byte, error) {
-	col := &HostKeyCollector{}
+// host. Any errors (e.g. authentication  failures) are ignored, except
+// if no key could be collected from the host.
+//
+// clientHostKeyAlgos defines what HostKey algorithms to be
+// used by the ssh client when using `ssh.Dial`. The default is
+// empty, which defaults to Golang's preferred HostKey algorithms.
+func ScanHostKey(host string, timeout time.Duration, clientHostKeyAlgos []string, hashKeys bool) ([]byte, error) {
+	col := &HostKeyCollector{hashKeys: hashKeys}
 	config := &ssh.ClientConfig{
 		HostKeyCallback: col.StoreKey(),
 		Timeout:         timeout,
 	}
+	config.SetDefaults()
+
+	if len(clientHostKeyAlgos) > 0 {
+		config.HostKeyAlgorithms = clientHostKeyAlgos
+	}
+
 	client, err := ssh.Dial("tcp", host, config)
 	if err == nil {
 		defer client.Close()
@@ -49,6 +59,7 @@ func ScanHostKey(host string, timeout time.Duration) ([]byte, error) {
 // HostKeyCallBack to collect public keys from an SSH server.
 type HostKeyCollector struct {
 	knownKeys []byte
+	hashKeys  bool
 }
 
 // StoreKey stores the public key in bytes as returned by the host.
@@ -57,9 +68,13 @@ type HostKeyCollector struct {
 // the algorithm you want to collect.
 func (c *HostKeyCollector) StoreKey() ssh.HostKeyCallback {
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		h := knownhosts.Normalize(hostname)
+		if c.hashKeys {
+			h = knownhosts.HashHostname(h)
+		}
 		c.knownKeys = append(
 			c.knownKeys,
-			fmt.Sprintf("%s %s %s\n", knownhosts.Normalize(hostname), key.Type(), base64.StdEncoding.EncodeToString(key.Marshal()))...,
+			fmt.Sprintf("%s %s %s\n", h, key.Type(), base64.StdEncoding.EncodeToString(key.Marshal()))...,
 		)
 		return nil
 	}

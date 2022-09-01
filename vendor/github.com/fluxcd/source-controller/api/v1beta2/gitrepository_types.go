@@ -48,7 +48,7 @@ const (
 // Artifact for a Git repository.
 type GitRepositorySpec struct {
 	// URL specifies the Git repository URL, it can be an HTTP/S or SSH address.
-	// +kubebuilder:validation:Pattern="^(http|https|ssh)://"
+	// +kubebuilder:validation:Pattern="^(http|https|ssh)://.*$"
 	// +required
 	URL string `json:"url"`
 
@@ -56,7 +56,7 @@ type GitRepositorySpec struct {
 	// the GitRepository.
 	// For HTTPS repositories the Secret must contain 'username' and 'password'
 	// fields.
-	// For SSH repositories the Secret must contain 'identity', 'identity.pub'
+	// For SSH repositories the Secret must contain 'identity'
 	// and 'known_hosts' fields.
 	// +optional
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
@@ -210,6 +210,18 @@ type GitRepositoryStatus struct {
 	// Artifacts as instructed by GitRepositorySpec.Include.
 	// +optional
 	IncludedArtifacts []*Artifact `json:"includedArtifacts,omitempty"`
+
+	// ContentConfigChecksum is a checksum of all the configurations related to
+	// the content of the source artifact:
+	//  - .spec.ignore
+	//  - .spec.recurseSubmodules
+	//  - .spec.included and the checksum of the included artifacts
+	// observed in .status.observedGeneration version of the object. This can
+	// be used to determine if the content of the included repository has
+	// changed.
+	// It has the format of `<algo>:<checksum>`, for example: `sha256:<checksum>`.
+	// +optional
+	ContentConfigChecksum string `json:"contentConfigChecksum,omitempty"`
 
 	meta.ReconcileRequestStatus `json:",inline"`
 }
