@@ -10,7 +10,7 @@ import (
 
 	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
 	"github.com/gardener/gardener/extensions/pkg/controller/healthcheck"
-	healthcheckconfig "github.com/gardener/gardener/extensions/pkg/controller/healthcheck/config"
+	extensionconfig "github.com/gardener/gardener/extensions/pkg/apis/config"
 	"github.com/gardener/gardener/extensions/pkg/controller/healthcheck/general"
 	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
@@ -24,7 +24,7 @@ var (
 	defaultSyncPeriod = time.Second * 30
 	// DefaultAddOptions contains configuration for the health check controller.
 	DefaultAddOptions = healthcheck.DefaultAddArgs{
-		HealthCheckConfig: healthcheckconfig.HealthCheckConfig{SyncPeriod: metav1.Duration{Duration: defaultSyncPeriod}},
+		HealthCheckConfig: extensionconfig.HealthCheckConfig{SyncPeriod: metav1.Duration{Duration: defaultSyncPeriod}},
 	}
 )
 

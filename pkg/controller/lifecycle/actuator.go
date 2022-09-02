@@ -66,7 +66,7 @@ type actuator struct {
 // PARAMETERS
 // ctx context.Context               Execution context
 // ex  *extensionsv1alpha1.Extension Extension struct
-func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
+func (a *actuator) Reconcile(ctx context.Context, _ logr.Logger, ex *extensionsv1alpha1.Extension) error {
 
 	// get the shoot and the project namespace
 	extensionNamespace := ex.GetNamespace()
@@ -150,7 +150,7 @@ func (a *actuator) Reconcile(ctx context.Context, ex *extensionsv1alpha1.Extensi
 // PARAMETERS
 // ctx context.Context               Execution context
 // ex  *extensionsv1alpha1.Extension Extension struct
-func (a *actuator) Delete(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
+func (a *actuator) Delete(ctx context.Context, _ logr.Logger, ex *extensionsv1alpha1.Extension) error {
 	namespace := ex.GetNamespace()
 	twoMinutes := 2 * time.Minute
 
@@ -191,8 +191,8 @@ func (a *actuator) Delete(ctx context.Context, ex *extensionsv1alpha1.Extension)
 // PARAMETERS
 // ctx context.Context               Execution context
 // ex  *extensionsv1alpha1.Extension Extension struct
-func (a *actuator) Restore(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
-	return a.Reconcile(ctx, ex)
+func (a *actuator) Restore(ctx context.Context, log logr.Logger, ex *extensionsv1alpha1.Extension) error {
+	return a.Reconcile(ctx, log, ex)
 }
 
 // Migrate the Extension resource.
@@ -200,8 +200,8 @@ func (a *actuator) Restore(ctx context.Context, ex *extensionsv1alpha1.Extension
 // PARAMETERS
 // ctx context.Context               Execution context
 // ex  *extensionsv1alpha1.Extension Extension struct
-func (a *actuator) Migrate(ctx context.Context, ex *extensionsv1alpha1.Extension) error {
-	return a.Delete(ctx, ex)
+func (a *actuator) Migrate(ctx context.Context, log logr.Logger, ex *extensionsv1alpha1.Extension) error {
+	return a.Delete(ctx, log, ex)
 }
 
 // InjectConfig injects the rest config to this actuator.

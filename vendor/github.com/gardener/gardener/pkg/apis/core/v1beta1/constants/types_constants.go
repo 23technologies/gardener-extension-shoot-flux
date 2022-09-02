@@ -124,6 +124,9 @@ const (
 	// DeploymentNameGrafanaUsers is a constant for the name of a Kubernetes deployment object that contains
 	// the grafana-users pod.
 	DeploymentNameGrafanaUsers = "grafana-users"
+	// DeploymentNameEventLogger is a constant for the name of a Kubernetes deployment object that contains
+	// the event-logger pod.
+	DeploymentNameEventLogger = "event-logger"
 	// DeploymentNameKubeStateMetrics is a constant for the name of a Kubernetes deployment object that contains
 	// the kube-state-metrics pod.
 	DeploymentNameKubeStateMetrics = "kube-state-metrics"
@@ -502,9 +505,6 @@ const (
 	// DefaultIngressGatewayAppLabelValue is the ingress gateway value for the app label.
 	DefaultIngressGatewayAppLabelValue = "istio-ingressgateway"
 
-	// AnnotationShootUseAsSeed is a constant for an annotation on a Shoot resource indicating that the Shoot shall be registered as Seed in the
-	// Garden cluster once successfully created.
-	AnnotationShootUseAsSeed = "shoot.gardener.cloud/use-as-seed"
 	// AnnotationManagedSeedAPIServer is a constant for an annotation on a Shoot resource containing the API server settings for a managed seed.
 	AnnotationManagedSeedAPIServer = "shoot.gardener.cloud/managed-seed-api-server"
 	// AnnotationShootIgnoreAlerts is the key for an annotation of a Shoot cluster whose value indicates
@@ -564,6 +564,15 @@ const (
 	// AnnotationShootAPIServerSNIPodInjectorDisableValue is the value of the
 	// `alpha.featuregates.shoot.gardener.cloud/apiserver-sni-pod-injector` annotation that disables the pod injection.
 	AnnotationShootAPIServerSNIPodInjectorDisableValue = "disable"
+
+	// AnnotationSeccompDefaultProfile is the key for an annotation applied to a PodSecurityPolicy which specifies
+	// which is the default seccomp profile to apply to containers.
+	AnnotationSeccompDefaultProfile = "seccomp.security.alpha.kubernetes.io/defaultProfileName"
+	// AnnotationSeccompAllowedProfiles is the key for an annotation applied to a PodSecurityPolicy which specifies
+	// which values are allowed for the pod seccomp annotations.
+	AnnotationSeccompAllowedProfiles = "seccomp.security.alpha.kubernetes.io/allowedProfileNames"
+	// AnnotationSeccompAllowedProfilesRuntimeDefaultValue is the value for the default container runtime profile.
+	AnnotationSeccompAllowedProfilesRuntimeDefaultValue = "runtime/default"
 
 	// OperatingSystemConfigUnitNameKubeletService is a constant for a unit in the operating system config that contains the kubelet service.
 	OperatingSystemConfigUnitNameKubeletService = "kubelet.service"

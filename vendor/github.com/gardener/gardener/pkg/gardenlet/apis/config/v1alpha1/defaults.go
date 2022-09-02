@@ -62,11 +62,6 @@ func SetDefaults_GardenletConfiguration(obj *GardenletConfiguration) {
 		obj.LogFormat = &v
 	}
 
-	if obj.KubernetesLogLevel == nil {
-		v := DefaultKubernetesLogLevel
-		obj.KubernetesLogLevel = &v
-	}
-
 	if obj.Server == nil {
 		obj.Server = &ServerConfiguration{}
 	}
@@ -85,6 +80,10 @@ func SetDefaults_GardenletConfiguration(obj *GardenletConfiguration) {
 
 	if obj.SNI == nil {
 		obj.SNI = &SNI{}
+	}
+
+	if obj.Monitoring == nil {
+		obj.Monitoring = &MonitoringConfig{}
 	}
 
 	if obj.ETCDConfig == nil {
@@ -213,6 +212,21 @@ func SetDefaults_BackupEntryControllerConfiguration(obj *BackupEntryControllerCo
 	if obj.DeletionGracePeriodHours == nil || *obj.DeletionGracePeriodHours < 0 {
 		v := DefaultBackupEntryDeletionGracePeriodHours
 		obj.DeletionGracePeriodHours = &v
+	}
+}
+
+// SetDefaults_MonitoringConfig sets the defaults for the monitoring stack.
+func SetDefaults_MonitoringConfig(obj *MonitoringConfig) {
+	if obj.Shoot == nil {
+		obj.Shoot = &ShootMonitoringConfig{}
+	}
+}
+
+// SetDefaults_ShootMonitoringConfig sets the defaults for the shoot monitoring.
+func SetDefaults_ShootMonitoringConfig(obj *ShootMonitoringConfig) {
+	if obj.Enabled == nil {
+		v := true
+		obj.Enabled = &v
 	}
 }
 
@@ -479,7 +493,7 @@ func SetDefaults_SNIIngress(obj *SNIIngress) {
 // SetDefaults_Logging sets defaults for the Logging stack.
 func SetDefaults_Logging(obj *Logging) {
 	if obj.Enabled == nil {
-		obj.Enabled = pointer.BoolPtr(false)
+		obj.Enabled = pointer.Bool(false)
 	}
 	if obj.Loki == nil {
 		obj.Loki = &Loki{}
@@ -492,6 +506,12 @@ func SetDefaults_Logging(obj *Logging) {
 	}
 	if obj.Loki.Garden.Storage == nil {
 		obj.Loki.Garden.Storage = &DefaultCentralLokiStorage
+	}
+	if obj.ShootEventLogging == nil {
+		obj.ShootEventLogging = &ShootEventLogging{}
+	}
+	if obj.ShootEventLogging.Enabled == nil {
+		obj.ShootEventLogging.Enabled = obj.Enabled
 	}
 }
 

@@ -25,6 +25,8 @@ const (
 	// Ignore is an annotation that dictates whether a resources should be ignored during
 	// reconciliation.
 	Ignore = "resources.gardener.cloud/ignore"
+	// SkipHealthCheck is an annotation that dictates whether a resource should be ignored during health check.
+	SkipHealthCheck = "resources.gardener.cloud/skip-health-check"
 	// DeleteOnInvalidUpdate is a constant for an annotation on a resource managed by a ManagedResource. If set to
 	// true then the controller will delete the object in case it faces an "Invalid" response during an update operation.
 	DeleteOnInvalidUpdate = "resources.gardener.cloud/delete-on-invalid-update"
@@ -50,6 +52,10 @@ const (
 	// It is set by the ManagedResource controller to the key of the owning ManagedResource, optionally prefixed with the
 	// clusterID.
 	OriginAnnotation = "resources.gardener.cloud/origin"
+
+	// ManagedBy is a constant for a label on an object managed by a ManagedResource.
+	// It is set by the ManagedResource controller depending on its configuration. By default it is set to "gardener".
+	ManagedBy = "resources.gardener.cloud/managed-by"
 
 	// StaticTokenSkip is a constant for a label on a ServiceAccount which indicates that this ServiceAccount should not
 	// be considered by this controller.
@@ -98,6 +104,10 @@ const (
 	// ProjectedTokenExpirationSeconds is a constant for an annotation on a Pod which overwrites the default token expiration
 	// seconds for the automatic mount of a projected ServiceAccount token.
 	ProjectedTokenExpirationSeconds = "projected-token-mount.resources.gardener.cloud/expiration-seconds"
+
+	// SeccompProfileSkip is a constant for a label on a Pod which indicates that this Pod should not be considered for
+	// defaulting of its seccomp profile.
+	SeccompProfileSkip = "seccompprofile.resources.gardener.cloud/skip"
 )
 
 // +kubebuilder:resource:shortName="mr"

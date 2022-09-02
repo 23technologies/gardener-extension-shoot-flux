@@ -283,7 +283,7 @@ metadata:
   namespace : egress
 spec:
   hosts:
-  - httpbin.com
+  - example.com
   exportTo:
   - &quot;.&quot;
   location: MESH_EXTERNAL
@@ -305,7 +305,7 @@ metadata:
   namespace : egress
 spec:
   hosts:
-  - httpbin.com
+  - example.com
   exportTo:
   - &quot;.&quot;
   location: MESH_EXTERNAL
@@ -382,7 +382,7 @@ metadata:
   namespace: egress
 spec:
   hosts:
-  - httpbin.com
+  - example.com
   exportTo:
   - &quot;*&quot;
   gateways:
@@ -402,7 +402,7 @@ spec:
       - istio-egressgateway
     route:
     - destination:
-        host: httpbin.com
+        host: example.com
 </code></pre>
 
 <p>{{</tab>}}</p>
@@ -416,7 +416,7 @@ metadata:
   namespace: egress
 spec:
   hosts:
-  - httpbin.com
+  - example.com
   exportTo:
   - &quot;*&quot;
   gateways:
@@ -436,7 +436,7 @@ spec:
       - istio-egressgateway
     route:
     - destination:
-        host: httpbin.com
+        host: example.com
 </code></pre>
 
 <p>{{</tab>}}
@@ -622,7 +622,7 @@ metadata:
   namespace : httpbin-ns
 spec:
   hosts:
-  - httpbin.com
+  - example.com
   location: MESH_INTERNAL
   ports:
   - number: 80
@@ -647,7 +647,7 @@ metadata:
   namespace : httpbin-ns
 spec:
   hosts:
-  - httpbin.com
+  - example.com
   location: MESH_INTERNAL
   ports:
   - number: 80
@@ -1067,7 +1067,7 @@ domain socket endpoints.</p>
 <td><code>DNS_ROUND_ROBIN</code></td>
 <td>
 <p>Attempt to resolve the IP address by querying the ambient DNS,
-asynchronously. Unlike DNS, DNS<em>ROUND</em>ROBIN only uses the
+asynchronously. Unlike DNS, DNS_ROUND_ROBIN only uses the
 first IP address returned when a new connection needs to be initiated
 without relying on complete results of DNS resolution and connections
 made to hosts will be retained even if DNS records change frequently

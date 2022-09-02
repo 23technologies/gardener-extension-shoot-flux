@@ -412,7 +412,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
               -v "$CERTS_DIR":/certs \
               $QUIC_CLIENT_IMAGE \
               --server="$loadbalancerIPOrHostName:$quicTunnelPort" \
-              --upstream="host.docker.internal:$webhookServerPort" \
+              --upstream="172.18.0.1:$webhookServerPort" \
               --ca-file=/certs/ca.crt \
               --cert-file=/certs/client.crt \
               --cert-key=/certs/client.key \
