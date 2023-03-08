@@ -8,7 +8,7 @@ package lifecycle
 import (
 	"context"
 	_ "embed"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -71,6 +71,9 @@ func (a *actuator) Reconcile(ctx context.Context, _ logr.Logger, ex *extensionsv
 	// get the shoot and the project namespace
 	extensionNamespace := ex.GetNamespace()
 	shoot, err := extensions.GetShoot(ctx, a.client, extensionNamespace)
+	if err != nil {
+		return err
+	}
 	projectNamespace := shoot.GetNamespace()
 
 	// fetch the configmap holding the per-project configuration for the current flux installation
@@ -127,21 +130,21 @@ func (a *actuator) Reconcile(ctx context.Context, _ logr.Logger, ex *extensionsv
 	// --------------------- Flux Configuration----------------------------
 
 	if !existsManagedResource(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig) {
-		// create the resources for the flux configuration
-		shootResourceFluxConfig, err := a.createShootResourceFluxConfig(ctx, projectNamespace, fluxConfigMap.Data)
-		if err != nil {
-			return err
+		var shootResourceFluxConfig map[string][]byte
+		if !optionalFieldsAreEmpty(fluxConfigMap.Data) {
+			// create the resources for the flux configuration if optional fields are filled
+			shootResourceFluxConfig, err = a.createShootResourceFluxConfig(ctx, projectNamespace, fluxConfigMap.Data)
+			if err != nil {
+				return err
+			}
+			a.logger.Info("Please add the (public) deploy key to your git repository, you can find it in the secret")
 		}
-		a.logger.Info("Please add the (public) deploy key to your git repository, you can find it in the secret")
-
 		// deploy the managed resource for the flux configuration
-		err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig, "shoot-flux", true, shootResourceFluxConfig)
-		if err != nil {
+		if err := managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig, "shoot-flux", true, shootResourceFluxConfig); err != nil {
 			return err
 		}
 	}
-	// return whether an error ocurred
-	return err
+	return nil
 }
 
 // Delete the Extension resource.
@@ -257,7 +260,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 
 	shootResources := make(map[string][]byte)
 
-	if fluxconfig["repositoryType"] == "private" {
+	if fluxconfig[constants.ConfigRepositoryType] == "private" {
 
 		var fluxRepoSecretData []byte
 		var err error
@@ -280,7 +283,7 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 		} else {
 			// parse the repository url in order to extract the hostname
 			// which is required for the generation of an ssh keypair
-			repourl, err := url.Parse(fluxconfig["repositoryUrl"])
+			repourl, err := url.Parse(fluxconfig[constants.ConfigRepositoryURL])
 			if err != nil {
 				return nil, err
 			}
@@ -292,6 +295,9 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 
 			// generate the flux source secret manifest and store it as []byte in the shootResources
 			secManifest, err := sourcesecret.Generate(sourceSecOpts)
+			if err != nil {
+				return nil, err
+			}
 			fluxRepoSecretData = []byte(secManifest.Content)
 
 			// lastly, also deploy the flux source secret into the projectNamespace in the seed cluster
@@ -340,9 +346,9 @@ func getFluxSourceData(fluxconfig map[string]string) sourcecontrollerv1beta2.Git
 				Duration: time.Second * 30,
 			},
 			Reference: &sourcecontrollerv1beta2.GitRepositoryRef{
-				Branch: fluxconfig["repositoryBranch"],
+				Branch: fluxconfig[constants.ConfigRepositoryBranch],
 			},
-			URL: fluxconfig["repositoryUrl"],
+			URL: fluxconfig[constants.ConfigRepositoryURL],
 		},
 		Status: sourcecontrollerv1beta2.GitRepositoryStatus{},
 	}
@@ -388,7 +394,7 @@ func getFluxVersion(fluxconfig map[string]string) (string, error) {
 	var fluxVersion string
 	var exists bool
 	ghClient := github.NewClient(nil)
-	if fluxVersion, exists = fluxconfig["fluxVersion"]; !exists {
+	if fluxVersion, exists = fluxconfig[constants.ConfigFluxVersion]; !exists {
 		ghReleaseLatest, _, err := ghClient.Repositories.GetLatestRelease(context.Background(), "fluxcd", "flux2")
 		if err != nil {
 			return "", err
@@ -418,7 +424,7 @@ func getFluxInstallYaml(fluxVersion string) ([]byte, error) {
 		return nil, err
 	}
 
-	fluxyaml, err := ioutil.ReadAll(resp.Body)
+	fluxyaml, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -449,9 +455,22 @@ func setAnnotationMrFluxInstall(ctx context.Context, c client.Client, extensionN
 // existsManagedResource ...
 func existsManagedResource(ctx context.Context, c client.Client, extensionNamespace string, name string) bool {
 	mr := resourcesv1alpha1.ManagedResource{}
-	err := c.Get(ctx, kutil.Key(extensionNamespace, name), &mr)
-	if err != nil {
+	if err := c.Get(ctx, kutil.Key(extensionNamespace, name), &mr); err != nil {
 		return false
 	}
 	return true
+}
+
+func optionalFieldsAreEmpty(fluxconfig map[string]string) bool {
+	isEmpty := true
+	if val, ok := fluxconfig[constants.ConfigRepositoryURL]; ok && val != "" {
+		isEmpty = false
+	}
+	if val, ok := fluxconfig[constants.ConfigRepositoryBranch]; ok && val != "" {
+		isEmpty = false
+	}
+	if val, ok := fluxconfig[constants.ConfigRepositoryType]; ok && val != "" {
+		isEmpty = false
+	}
+	return isEmpty
 }

@@ -15,10 +15,16 @@ const (
 
 	// ManagedResourceNamesShoot is the name used to describe the managed shoot resources.
 	ManagedResourceNameFluxInstall = extensionServiceName + "-flux-install"
-	ManagedResourceNameFluxConfig = extensionServiceName + "-flux-config"
-	FluxGitRepositoryName = "main-gitrepo"
-	FluxMainKustomizationName = "main-ks"
+	ManagedResourceNameFluxConfig  = extensionServiceName + "-flux-config"
+	FluxGitRepositoryName          = "main-gitrepo"
+	FluxMainKustomizationName      = "main-ks"
 
 	// FluxSourceSecretName name of the secret containing the flux sources
 	FluxSourceSecretName = "flux-source"
+
+	// ConfigMap keys
+	ConfigFluxVersion      = "fluxVersion"
+	ConfigRepositoryURL    = "repositoryUrl"
+	ConfigRepositoryBranch = "repositoryBranch"
+	ConfigRepositoryType   = "repositoryType"
 )
