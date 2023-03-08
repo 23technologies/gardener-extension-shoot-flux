@@ -18,15 +18,16 @@ import (
 	"fmt"
 	"time"
 
-	kcache "github.com/gardener/gardener/pkg/client/kubernetes/cache"
-
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+
+	kubernetescache "github.com/gardener/gardener/pkg/client/kubernetes/cache"
 )
 
 const (
@@ -77,7 +78,7 @@ func AggregatorCacheFunc(newCache cache.NewCacheFunc, typeToNewCache map[client.
 			gvkToCache[gvk] = cache
 		}
 
-		return kcache.NewAggregator(fallbackCache, gvkToCache, scheme), nil
+		return kubernetescache.NewAggregator(fallbackCache, gvkToCache, scheme), nil
 	}
 }
 
@@ -93,8 +94,7 @@ func NewRuntimeCache(config *rest.Config, options cache.Options) (cache.Cache, e
 
 func setCacheOptionsDefaults(options *cache.Options) error {
 	if options.Resync == nil {
-		resync := defaultCacheResyncPeriod
-		options.Resync = &resync
+		options.Resync = pointer.Duration(defaultCacheResyncPeriod)
 	}
 
 	return nil

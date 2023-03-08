@@ -126,7 +126,7 @@ type SeedBackup struct {
 type SeedDNS struct {
 	// IngressDomain is the domain of the Seed cluster pointing to the ingress controller endpoint. It will be used
 	// to construct ingress URLs for system applications running in Shoot clusters. This field is immutable.
-	// This will be removed in the next API version and replaced by spec.ingress.domain.
+	// Deprecated: This field is deprecated and will be removed in a future version of Gardener. Use spec.ingress.domain instead.
 	IngressDomain *string
 	// Provider configures a DNSProvider
 	Provider *SeedDNSProvider
@@ -139,8 +139,10 @@ type SeedDNSProvider struct {
 	// SecretRef is a reference to a Secret object containing cloud provider credentials used for registering external domains.
 	SecretRef corev1.SecretReference
 	// Domains contains information about which domains shall be included/excluded for this provider.
+	// Deprecated: This field is deprecated and will be removed in a future version of Gardener.
 	Domains *DNSIncludeExclude
 	// Zones contains information about which hosted zones shall be included/excluded for this provider.
+	// Deprecated: This field is deprecated and will be removed in a future version of Gardener.
 	Zones *DNSIncludeExclude
 }
 
@@ -174,6 +176,10 @@ type SeedNetworks struct {
 	// BlockCIDRs is a list of network addresses that should be blocked for shoot control plane components running
 	// in the seed cluster.
 	BlockCIDRs []string
+	// IPFamilies specifies the IP protocol versions to use for seed networking. This field is immutable.
+	// See https://github.com/gardener/gardener/blob/master/docs/usage/ipv6.md.
+	// Defaults to ["IPv4"].
+	IPFamilies []IPFamily
 }
 
 // ShootNetworks contains the default networks CIDRs for shoots.
@@ -184,7 +190,7 @@ type ShootNetworks struct {
 	Services *string
 }
 
-// SeedProvider defines the provider type and region for this Seed cluster.
+// SeedProvider defines the provider-specific information of this Seed cluster.
 type SeedProvider struct {
 	// Type is the name of the provider.
 	Type string
@@ -192,6 +198,8 @@ type SeedProvider struct {
 	ProviderConfig *runtime.RawExtension
 	// Region is a name of a region.
 	Region string
+	// Zones is the list of availability zones the seed cluster is deployed to.
+	Zones []string
 }
 
 // SeedSettings contains certain settings for this seed cluster.
@@ -200,9 +208,6 @@ type SeedSettings struct {
 	ExcessCapacityReservation *SeedSettingExcessCapacityReservation
 	// Scheduling controls settings for scheduling decisions for the seed.
 	Scheduling *SeedSettingScheduling
-	// ShootDNS controls the shoot DNS settings for the seed.
-	// Deprecated: This field is deprecated and will be removed in a future version of Gardener. Do not use it.
-	ShootDNS *SeedSettingShootDNS
 	// LoadBalancerServices controls certain settings for services of type load balancer that are created in the seed.
 	LoadBalancerServices *SeedSettingLoadBalancerServices
 	// VerticalPodAutoscaler controls certain settings for the vertical pod autoscaler components deployed in the seed.
@@ -211,20 +216,15 @@ type SeedSettings struct {
 	OwnerChecks *SeedSettingOwnerChecks
 	// DependencyWatchdog controls certain settings for the dependency-watchdog components deployed in the seed.
 	DependencyWatchdog *SeedSettingDependencyWatchdog
+	// TopologyAwareRouting controls certain settings for topology-aware traffic routing in the seed.
+	// See https://github.com/gardener/gardener/blob/master/docs/usage/topology_aware_routing.md.
+	TopologyAwareRouting *SeedSettingTopologyAwareRouting
 }
 
 // SeedSettingExcessCapacityReservation controls the excess capacity reservation for shoot control planes in the
 // seed.
 type SeedSettingExcessCapacityReservation struct {
 	// Enabled controls whether the excess capacity reservation should be enabled.
-	Enabled bool
-}
-
-// SeedSettingShootDNS controls the shoot DNS settings for the seed.
-type SeedSettingShootDNS struct {
-	// Enabled controls whether the DNS for shoot clusters should be enabled. When disabled then all shoots using the
-	// seed won't get any DNS providers, DNS records, and no DNS extension controller is required to be installed here.
-	// This is useful for environments where DNS is not required.
 	Enabled bool
 }
 
@@ -240,6 +240,26 @@ type SeedSettingScheduling struct {
 type SeedSettingLoadBalancerServices struct {
 	// Annotations is a map of annotations that will be injected/merged into every load balancer service object.
 	Annotations map[string]string
+	// ExternalTrafficPolicy describes how nodes distribute service traffic they
+	// receive on one of the service's "externally-facing" addresses.
+	// Defaults to "Cluster".
+	ExternalTrafficPolicy *corev1.ServiceExternalTrafficPolicyType
+	// Zones controls settings, which are specific to the single-zone load balancers in a multi-zonal setup.
+	// Can be empty for single-zone seeds. Each specified zone has to relate to one of the zones in seed.spec.provider.zones.
+	Zones []SeedSettingLoadBalancerServicesZones
+}
+
+// SeedSettingLoadBalancerServicesZones controls settings, which are specific to the single-zone load balancers in a
+// multi-zonal setup.
+type SeedSettingLoadBalancerServicesZones struct {
+	// Name is the name of the zone as specified in seed.spec.provider.zones.
+	Name string
+	// Annotations is a map of annotations that will be injected/merged into the zone-specific load balancer service object.
+	Annotations map[string]string
+	// ExternalTrafficPolicy describes how nodes distribute service traffic they
+	// receive on one of the service's "externally-facing" addresses.
+	// Defaults to "Cluster".
+	ExternalTrafficPolicy *corev1.ServiceExternalTrafficPolicyType
 }
 
 // SeedSettingVerticalPodAutoscaler controls certain settings for the vertical pod autoscaler components deployed in the
@@ -279,6 +299,14 @@ type SeedSettingDependencyWatchdogProbe struct {
 	// Enabled controls whether the probe controller of the dependency-watchdog should be enabled. This controller
 	// scales down the kube-controller-manager of shoot clusters in case their respective kube-apiserver is not
 	// reachable via its external ingress in order to avoid melt-down situations.
+	Enabled bool
+}
+
+// SeedSettingTopologyAwareRouting controls certain settings for topology-aware traffic routing in the seed.
+// See https://github.com/gardener/gardener/blob/master/docs/usage/topology_aware_routing.md.
+type SeedSettingTopologyAwareRouting struct {
+	// Enabled controls whether certain Services deployed in the seed cluster should be topology-aware.
+	// These Services are etcd-main-client, etcd-events-client, kube-apiserver, gardener-resource-manager and vpa-webhook.
 	Enabled bool
 }
 

@@ -55,18 +55,22 @@ type GitRepositorySpec struct {
 	// SecretRef specifies the Secret containing authentication credentials for
 	// the GitRepository.
 	// For HTTPS repositories the Secret must contain 'username' and 'password'
-	// fields.
+	// fields for basic auth or 'bearerToken' field for token auth.
 	// For SSH repositories the Secret must contain 'identity'
 	// and 'known_hosts' fields.
 	// +optional
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 
 	// Interval at which to check the GitRepository for updates.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
 	// Timeout for Git operations like cloning, defaults to 60s.
 	// +kubebuilder:default="60s"
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -93,6 +97,8 @@ type GitRepositorySpec struct {
 
 	// GitImplementation specifies which Git client library implementation to
 	// use. Defaults to 'go-git', valid values are ('go-git', 'libgit2').
+	// Deprecated: gitImplementation is deprecated now that 'go-git' is the
+	// only supported implementation.
 	// +kubebuilder:validation:Enum=go-git;libgit2
 	// +kubebuilder:default:=go-git
 	// +optional
@@ -100,7 +106,6 @@ type GitRepositorySpec struct {
 
 	// RecurseSubmodules enables the initialization of all submodules within
 	// the GitRepository as cloned from the URL, using their default settings.
-	// This option is available only when using the 'go-git' GitImplementation.
 	// +optional
 	RecurseSubmodules bool `json:"recurseSubmodules,omitempty"`
 
@@ -150,9 +155,6 @@ func (in *GitRepositoryInclude) GetToPath() string {
 // GitRepositoryRef specifies the Git reference to resolve and checkout.
 type GitRepositoryRef struct {
 	// Branch to check out, defaults to 'master' if no other field is defined.
-	//
-	// When GitRepositorySpec.GitImplementation is set to 'go-git', a shallow
-	// clone of the specified branch is performed.
 	// +optional
 	Branch string `json:"branch,omitempty"`
 
@@ -164,11 +166,17 @@ type GitRepositoryRef struct {
 	// +optional
 	SemVer string `json:"semver,omitempty"`
 
+	// Name of the reference to check out; takes precedence over Branch, Tag and SemVer.
+	//
+	// It must be a valid Git reference: https://git-scm.com/docs/git-check-ref-format#_description
+	// Examples: "refs/heads/main", "refs/tags/v0.1.0", "refs/pull/420/head", "refs/merge-requests/1/head"
+	// +optional
+	Name string `json:"name,omitempty"`
+
 	// Commit SHA to check out, takes precedence over all reference fields.
 	//
-	// When GitRepositorySpec.GitImplementation is set to 'go-git', this can be
-	// combined with Branch to shallow clone the branch, in which the commit is
-	// expected to exist.
+	// This can be combined with Branch to shallow clone the branch, in which
+	// the commit is expected to exist.
 	// +optional
 	Commit string `json:"commit,omitempty"`
 }
@@ -220,8 +228,26 @@ type GitRepositoryStatus struct {
 	// be used to determine if the content of the included repository has
 	// changed.
 	// It has the format of `<algo>:<checksum>`, for example: `sha256:<checksum>`.
+	//
+	// Deprecated: Replaced with explicit fields for observed artifact content
+	// config in the status.
 	// +optional
 	ContentConfigChecksum string `json:"contentConfigChecksum,omitempty"`
+
+	// ObservedIgnore is the observed exclusion patterns used for constructing
+	// the source artifact.
+	// +optional
+	ObservedIgnore *string `json:"observedIgnore,omitempty"`
+
+	// ObservedRecurseSubmodules is the observed resource submodules
+	// configuration used to produce the current Artifact.
+	// +optional
+	ObservedRecurseSubmodules bool `json:"observedRecurseSubmodules,omitempty"`
+
+	// ObservedInclude is the observed list of GitRepository resources used to
+	// to produce the current Artifact.
+	// +optional
+	ObservedInclude []GitRepositoryInclude `json:"observedInclude,omitempty"`
 
 	meta.ReconcileRequestStatus `json:",inline"`
 }

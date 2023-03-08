@@ -80,7 +80,6 @@ func (a *actuator) Reconcile(ctx context.Context, _ logr.Logger, ex *extensionsv
 		return err
 	}
 
-
 	// --------------------- Flux Installation ----------------------------
 	if !existsManagedResource(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall) {
 
@@ -95,7 +94,7 @@ func (a *actuator) Reconcile(ctx context.Context, _ logr.Logger, ex *extensionsv
 			return err
 		}
 		// deploy the managed resource for the flux installatation
-		err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, true, shootResourceFluxInstall)
+		err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, "shoot-flux", true, shootResourceFluxInstall)
 		if err != nil {
 			return err
 		}
@@ -136,7 +135,7 @@ func (a *actuator) Reconcile(ctx context.Context, _ logr.Logger, ex *extensionsv
 		a.logger.Info("Please add the (public) deploy key to your git repository, you can find it in the secret")
 
 		// deploy the managed resource for the flux configuration
-		err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig, true, shootResourceFluxConfig)
+		err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxConfig, "shoot-flux", true, shootResourceFluxConfig)
 		if err != nil {
 			return err
 		}
