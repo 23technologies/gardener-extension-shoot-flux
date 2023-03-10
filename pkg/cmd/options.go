@@ -12,6 +12,8 @@ import (
 	"github.com/23technologies/gardener-extension-shoot-flux/pkg/controller/lifecycle"
 	controllercmd "github.com/gardener/gardener/extensions/pkg/controller/cmd"
 	extensionshealthcheckcontroller "github.com/gardener/gardener/extensions/pkg/controller/healthcheck"
+	extensionsheartbeatcontroller "github.com/gardener/gardener/extensions/pkg/controller/heartbeat"
+	heartbeatcmd "github.com/gardener/gardener/extensions/pkg/controller/heartbeat/cmd"
 )
 
 // ExtensionName is the name of the extension.
@@ -27,6 +29,7 @@ type Options struct {
 	healthOptions      *controllercmd.ControllerOptions
 	controllerSwitches *controllercmd.SwitchOptions
 	reconcileOptions   *controllercmd.ReconcilerOptions
+	heartbeatOptions   *heartbeatcmd.Options
 	optionAggregator   controllercmd.OptionAggregator
 }
 
@@ -53,10 +56,15 @@ func NewOptions() *Options {
 			// This is a default value.
 			MaxConcurrentReconciles: 5,
 		},
+		heartbeatOptions: &heartbeatcmd.Options{
+			ExtensionName: ExtensionName,
+			Namespace:     os.Getenv("LEADER_ELECTION_NAMESPACE"),
+		},
 		reconcileOptions: &controllercmd.ReconcilerOptions{},
 		controllerSwitches: controllercmd.NewSwitchOptions(
 			controllercmd.Switch(lifecycle.Name, lifecycle.AddToManager),
-			controllercmd.Switch(extensionshealthcheckcontroller.ControllerName, healthcheck.AddToManager)),
+			controllercmd.Switch(extensionshealthcheckcontroller.ControllerName, healthcheck.AddToManager),
+			controllercmd.Switch(extensionsheartbeatcontroller.ControllerName, extensionsheartbeatcontroller.AddToManager)),
 	}
 
 	options.optionAggregator = controllercmd.NewOptionAggregator(
@@ -66,6 +74,7 @@ func NewOptions() *Options {
 		options.controllerOptions,
 		controllercmd.PrefixOption("lifecycle-", options.lifecycleOptions),
 		controllercmd.PrefixOption("healthcheck-", options.healthOptions),
+		controllercmd.PrefixOption("heartbeat-", options.heartbeatOptions),
 		options.controllerSwitches,
 		options.reconcileOptions,
 	)
