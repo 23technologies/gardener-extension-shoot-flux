@@ -4,10 +4,10 @@
 
 EXTENSION_PREFIX            := gardener-extension
 NAME                        := shoot-flux
-IMAGE_PREFIX                := ghcr.io/23technologies
+REPO 						:= ghcr.io/23technologies
 REPO_ROOT                   := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 HACK_DIR                    := $(REPO_ROOT)/hack
-VERSION                     := $(shell cat "$(REPO_ROOT)/VERSION")
+TAG                     := $(shell cat "$(REPO_ROOT)/VERSION")
 LD_FLAGS                    := "-w $(shell $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/get-build-ld-flags.sh k8s.io/component-base $(REPO_ROOT)/VERSION $(EXTENSION_PREFIX)-$(NAME))"
 LEADER_ELECTION             := false
 IGNORE_OPERATION_ANNOTATION := true
@@ -23,8 +23,9 @@ ifeq (${WEBHOOK_CONFIG_MODE}, service)
 endif
 
 
-TOOLS_DIR := $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/tools
+TOOLS_DIR := hack/tools
 include $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/tools.mk
+include hack/tools.mk
 
 .PHONY: start
 start:
@@ -59,9 +60,18 @@ install:
 	@LD_FLAGS=$(LD_FLAGS) \
 	$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/install.sh ./...
 
+PUSH ?= false
+.PHONY: images
+images: $(KO)
+	KO_DOCKER_REPO=$(REPO) $(KO) build --sbom none --base-import-paths -t $(TAG) --platform linux/amd64,linux/arm64 --push=$(PUSH) ./cmd/gardener-extension-shoot-flux
+
 .PHONY: docker-images
 docker-images:
-	@docker build -t $(IMAGE_PREFIX)/$(NAME):$(VERSION) -t $(IMAGE_PREFIX)/$(NAME):latest -f Dockerfile -m 6g --target $(EXTENSION_PREFIX)-$(NAME) .
+	@docker build -t $(REPO)/$(NAME):$(TAG) -t $(REPO)/$(NAME):latest -f Dockerfile -m 6g --target $(EXTENSION_PREFIX)-$(NAME) .
+
+.PHONY: controller-registration
+controller-registration:
+	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/generate-controller-registration.sh shoot-flux charts/gardener-extension-shoot-flux $(TAG) controller-registartion.yaml Extension:shoot-flux
 
 #####################################################################
 # Rules for verification, formatting, linting, testing and cleaning #
