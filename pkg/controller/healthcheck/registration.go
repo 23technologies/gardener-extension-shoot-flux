@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
-	"github.com/gardener/gardener/extensions/pkg/controller/healthcheck"
 	extensionconfig "github.com/gardener/gardener/extensions/pkg/apis/config"
+	"github.com/gardener/gardener/extensions/pkg/controller/healthcheck"
 	"github.com/gardener/gardener/extensions/pkg/controller/healthcheck/general"
 	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"

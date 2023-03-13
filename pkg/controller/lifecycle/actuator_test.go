@@ -7,8 +7,11 @@ package lifecycle
 
 import (
 	"context"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
 
 	"github.com/google/go-github/v44/github"
 )
@@ -29,7 +32,7 @@ var _ = Describe("Flux", func() {
 	// check whether the latest version is pulled in case of zero-conf
 	It("Should return the version string of the latest version", func() {
 		ghClient := github.NewClient(nil)
-		ghReleaseLatest, _, _  := ghClient.Repositories.GetLatestRelease(context.Background(), "fluxcd", "flux2")
+		ghReleaseLatest, _, _ := ghClient.Repositories.GetLatestRelease(context.Background(), "fluxcd", "flux2")
 		Expect(getFluxVersion(map[string]string{})).To(Equal(*ghReleaseLatest.Name))
 	})
 
@@ -38,4 +41,34 @@ var _ = Describe("Flux", func() {
 		Expect(getFluxInstallYaml("v0.28.2")).Should(BeAssignableToTypeOf([]byte{}))
 	})
 
+	// check whether optionalFieldsAreEmpty returns correct bool
+	Context("optionalFieldsAreEmpty func", func() {
+		Context("Fields contain values", func() {
+			It("Should return false", func() {
+				fluxconfig := map[string]string{
+					constants.ConfigRepositoryURL:    "ssh://git@github.com/THE-OWNER/THE-REPO",
+					constants.ConfigRepositoryBranch: "main",
+					constants.ConfigRepositoryType:   "private",
+				}
+				Expect(optionalFieldsAreEmpty(fluxconfig)).To(BeFalse())
+			})
+		})
+		Context("Fields contain empty strings", func() {
+			It("Should return true", func() {
+				fluxconfig := map[string]string{
+					constants.ConfigRepositoryURL:    "",
+					constants.ConfigRepositoryBranch: "",
+					constants.ConfigRepositoryType:   "",
+				}
+				Expect(optionalFieldsAreEmpty(fluxconfig)).To(BeTrue())
+			})
+
+		})
+		Context("Fields are missing", func() {
+			It("Should return true", func() {
+				fluxconfig := map[string]string{}
+				Expect(optionalFieldsAreEmpty(fluxconfig)).To(BeTrue())
+			})
+		})
+	})
 })
