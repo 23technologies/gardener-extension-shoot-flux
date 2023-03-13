@@ -22,7 +22,6 @@ import (
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,6 +29,7 @@ const (
 	KustomizationKind         = "Kustomization"
 	KustomizationFinalizer    = "finalizers.fluxcd.io"
 	MaxConditionMessageLength = 20000
+	EnabledValue              = "enabled"
 	DisabledValue             = "disabled"
 	MergeValue                = "merge"
 )
@@ -47,12 +47,16 @@ type KustomizationSpec struct {
 	Decryption *Decryption `json:"decryption,omitempty"`
 
 	// The interval at which to reconcile the Kustomization.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
 	// The interval at which to retry a previously failed reconciliation.
 	// When not specified, the controller uses the KustomizationSpec.Interval
 	// value to retry failures.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	RetryInterval *metav1.Duration `json:"retryInterval,omitempty"`
 
@@ -64,7 +68,7 @@ type KustomizationSpec struct {
 	// a controller level fallback for when KustomizationSpec.ServiceAccountName
 	// is empty.
 	// +optional
-	KubeConfig *KubeConfig `json:"kubeConfig,omitempty"`
+	KubeConfig *meta.KubeConfigReference `json:"kubeConfig,omitempty"`
 
 	// Path to the directory containing the kustomization.yaml file, or the
 	// set of plain YAMLs a kustomization.yaml should be generated for.
@@ -130,6 +134,8 @@ type KustomizationSpec struct {
 
 	// Timeout for validation, apply and health checking operations.
 	// Defaults to 'Interval' duration.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -148,6 +154,10 @@ type KustomizationSpec struct {
 	// +kubebuilder:validation:Enum=none;client;server
 	// +optional
 	Validation string `json:"validation,omitempty"`
+
+	// Components specifies relative paths to specifications of other Components
+	// +optional
+	Components []string `json:"components,omitempty"`
 }
 
 // Decryption defines how decryption is handled for Kubernetes manifests.
@@ -160,21 +170,6 @@ type Decryption struct {
 	// The secret name containing the private OpenPGP keys used for decryption.
 	// +optional
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
-}
-
-// KubeConfig references a Kubernetes secret that contains a kubeconfig file.
-type KubeConfig struct {
-	// SecretRef holds the name of a secret that contains a key with
-	// the kubeconfig file as the value. If no key is set, the key will default
-	// to 'value'. The secret must be in the same namespace as
-	// the Kustomization.
-	// It is recommended that the kubeconfig is self-contained, and the secret
-	// is regularly updated if credentials such as a cloud-access-token expire.
-	// Cloud specific `cmd-path` auth helpers will not function without adding
-	// binaries and credentials to the Pod that is responsible for reconciling
-	// the Kustomization.
-	// +required
-	SecretRef meta.SecretKeyReference `json:"secretRef,omitempty"`
 }
 
 // PostBuild describes which actions to perform on the YAML manifest
@@ -232,7 +227,7 @@ type KustomizationStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// The last successfully applied revision.
-	// The revision format for Git sources is <branch|tag>/<commit-sha>.
+	// Equals the Revision of the applied Artifact from the referenced Source.
 	// +optional
 	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
 
@@ -243,78 +238,6 @@ type KustomizationStatus struct {
 	// Inventory contains the list of Kubernetes resource object references that have been successfully applied.
 	// +optional
 	Inventory *ResourceInventory `json:"inventory,omitempty"`
-}
-
-// KustomizationProgressing resets the conditions of the given Kustomization to a single
-// ReadyCondition with status ConditionUnknown.
-func KustomizationProgressing(k Kustomization, message string) Kustomization {
-	newCondition := metav1.Condition{
-		Type:    meta.ReadyCondition,
-		Status:  metav1.ConditionUnknown,
-		Reason:  meta.ProgressingReason,
-		Message: trimString(message, MaxConditionMessageLength),
-	}
-	apimeta.SetStatusCondition(k.GetStatusConditions(), newCondition)
-	return k
-}
-
-// SetKustomizationHealthiness sets the HealthyCondition status for a Kustomization.
-func SetKustomizationHealthiness(k *Kustomization, status metav1.ConditionStatus, reason, message string) {
-	if !k.Spec.Wait && len(k.Spec.HealthChecks) == 0 {
-		apimeta.RemoveStatusCondition(k.GetStatusConditions(), HealthyCondition)
-	} else {
-		newCondition := metav1.Condition{
-			Type:    HealthyCondition,
-			Status:  status,
-			Reason:  reason,
-			Message: trimString(message, MaxConditionMessageLength),
-		}
-		apimeta.SetStatusCondition(k.GetStatusConditions(), newCondition)
-	}
-
-}
-
-// SetKustomizationReadiness sets the ReadyCondition, ObservedGeneration, and LastAttemptedRevision, on the Kustomization.
-func SetKustomizationReadiness(k *Kustomization, status metav1.ConditionStatus, reason, message string, revision string) {
-	newCondition := metav1.Condition{
-		Type:    meta.ReadyCondition,
-		Status:  status,
-		Reason:  reason,
-		Message: trimString(message, MaxConditionMessageLength),
-	}
-	apimeta.SetStatusCondition(k.GetStatusConditions(), newCondition)
-
-	k.Status.ObservedGeneration = k.Generation
-	k.Status.LastAttemptedRevision = revision
-}
-
-// KustomizationNotReady registers a failed apply attempt of the given Kustomization.
-func KustomizationNotReady(k Kustomization, revision, reason, message string) Kustomization {
-	SetKustomizationReadiness(&k, metav1.ConditionFalse, reason, trimString(message, MaxConditionMessageLength), revision)
-	if revision != "" {
-		k.Status.LastAttemptedRevision = revision
-	}
-	return k
-}
-
-// KustomizationNotReadyInventory registers a failed apply attempt of the given Kustomization.
-func KustomizationNotReadyInventory(k Kustomization, inventory *ResourceInventory, revision, reason, message string) Kustomization {
-	SetKustomizationReadiness(&k, metav1.ConditionFalse, reason, trimString(message, MaxConditionMessageLength), revision)
-	SetKustomizationHealthiness(&k, metav1.ConditionFalse, reason, reason)
-	if revision != "" {
-		k.Status.LastAttemptedRevision = revision
-	}
-	k.Status.Inventory = inventory
-	return k
-}
-
-// KustomizationReadyInventory registers a successful apply attempt of the given Kustomization.
-func KustomizationReadyInventory(k Kustomization, inventory *ResourceInventory, revision, reason, message string) Kustomization {
-	SetKustomizationReadiness(&k, metav1.ConditionTrue, reason, trimString(message, MaxConditionMessageLength), revision)
-	SetKustomizationHealthiness(&k, metav1.ConditionTrue, reason, reason)
-	k.Status.Inventory = inventory
-	k.Status.LastAppliedRevision = revision
-	return k
 }
 
 // GetTimeout returns the timeout with default.
@@ -395,12 +318,4 @@ type KustomizationList struct {
 
 func init() {
 	SchemeBuilder.Register(&Kustomization{}, &KustomizationList{})
-}
-
-func trimString(str string, limit int) string {
-	if len(str) <= limit {
-		return str
-	}
-
-	return str[0:limit] + "..."
 }

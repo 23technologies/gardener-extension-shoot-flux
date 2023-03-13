@@ -46,6 +46,8 @@ type HelmChartSpec struct {
 	SourceRef LocalHelmChartSourceReference `json:"sourceRef"`
 
 	// Interval is the interval at which to check the Source for updates.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
@@ -84,6 +86,14 @@ type HelmChartSpec struct {
 	// NOTE: Not implemented, provisional as of https://github.com/fluxcd/flux2/pull/2092
 	// +optional
 	AccessFrom *acl.AccessFrom `json:"accessFrom,omitempty"`
+
+	// Verify contains the secret name containing the trusted public keys
+	// used to verify the signature and specifies which provider to use to check
+	// whether OCI image is authentic.
+	// This field is only supported when using HelmRepository source with spec.type 'oci'.
+	// Chart dependencies, which are not bundled in the umbrella chart artifact, are not verified.
+	// +optional
+	Verify *OCIRepositoryVerification `json:"verify,omitempty"`
 }
 
 const (

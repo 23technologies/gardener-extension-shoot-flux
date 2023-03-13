@@ -17,15 +17,15 @@ package extension
 import (
 	"time"
 
-	extensionspredicate "github.com/gardener/gardener/extensions/pkg/predicate"
-	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
-	"github.com/gardener/gardener/pkg/controllerutils/mapper"
-
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	extensionspredicate "github.com/gardener/gardener/extensions/pkg/predicate"
+	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
+	"github.com/gardener/gardener/pkg/controllerutils/mapper"
 )
 
 const (
@@ -60,7 +60,6 @@ type AddArgs struct {
 // Add adds an Extension controller to the given manager using the given AddArgs.
 func Add(mgr manager.Manager, args AddArgs) error {
 	args.ControllerOptions.Reconciler = NewReconciler(args)
-	args.ControllerOptions.RecoverPanic = true
 	return add(mgr, args)
 }
 

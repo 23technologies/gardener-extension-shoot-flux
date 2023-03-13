@@ -18,12 +18,12 @@ import (
 	"fmt"
 	"time"
 
-	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 	"k8s.io/utils/pointer"
+
+	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
@@ -52,24 +52,26 @@ func SetDefaults_GardenletConfiguration(obj *GardenletConfiguration) {
 		obj.LeaderElection = &componentbaseconfigv1alpha1.LeaderElectionConfiguration{}
 	}
 
-	if obj.LogLevel == nil {
-		v := LogLevelInfo
-		obj.LogLevel = &v
+	if obj.LogLevel == "" {
+		obj.LogLevel = LogLevelInfo
 	}
 
-	if obj.LogFormat == nil {
-		v := LogFormatJSON
-		obj.LogFormat = &v
+	if obj.LogFormat == "" {
+		obj.LogFormat = LogFormatJSON
 	}
 
-	if obj.Server == nil {
-		obj.Server = &ServerConfiguration{}
+	if obj.Server.HealthProbes == nil {
+		obj.Server.HealthProbes = &Server{}
 	}
-	if len(obj.Server.HTTPS.BindAddress) == 0 {
-		obj.Server.HTTPS.BindAddress = "0.0.0.0"
+	if obj.Server.HealthProbes.Port == 0 {
+		obj.Server.HealthProbes.Port = 2728
 	}
-	if obj.Server.HTTPS.Port == 0 {
-		obj.Server.HTTPS.Port = 2720
+
+	if obj.Server.Metrics == nil {
+		obj.Server.Metrics = &Server{}
+	}
+	if obj.Server.Metrics.Port == 0 {
+		obj.Server.Metrics.Port = 2729
 	}
 
 	if obj.Logging == nil {
@@ -114,6 +116,23 @@ func SetDefaults_GardenletConfiguration(obj *GardenletConfiguration) {
 	}
 }
 
+// SetDefaults_GardenClientConnection sets defaults for the controller objects.
+func SetDefaults_GardenClientConnection(obj *GardenClientConnection) {
+	if obj.KubeconfigValidity == nil {
+		obj.KubeconfigValidity = &KubeconfigValidity{}
+	}
+}
+
+// SetDefaults_KubeconfigValidity sets defaults for the controller objects.
+func SetDefaults_KubeconfigValidity(obj *KubeconfigValidity) {
+	if obj.AutoRotationJitterPercentageMin == nil {
+		obj.AutoRotationJitterPercentageMin = pointer.Int32(70)
+	}
+	if obj.AutoRotationJitterPercentageMax == nil {
+		obj.AutoRotationJitterPercentageMax = pointer.Int32(90)
+	}
+}
+
 // SetDefaults_GardenletControllerConfiguration sets defaults for the controller objects.
 func SetDefaults_GardenletControllerConfiguration(obj *GardenletControllerConfiguration) {
 	if obj.BackupBucket == nil {
@@ -121,9 +140,6 @@ func SetDefaults_GardenletControllerConfiguration(obj *GardenletControllerConfig
 	}
 	if obj.BackupEntry == nil {
 		obj.BackupEntry = &BackupEntryControllerConfiguration{}
-	}
-	if obj.BackupEntryMigration == nil {
-		obj.BackupEntryMigration = &BackupEntryMigrationControllerConfiguration{}
 	}
 	if obj.Bastion == nil {
 		obj.Bastion = &BastionControllerConfiguration{}
@@ -149,17 +165,14 @@ func SetDefaults_GardenletControllerConfiguration(obj *GardenletControllerConfig
 	if obj.SeedCare == nil {
 		obj.SeedCare = &SeedCareControllerConfiguration{}
 	}
-	if obj.ShootMigration == nil {
-		obj.ShootMigration = &ShootMigrationControllerConfiguration{}
-	}
 	if obj.ShootSecret == nil {
 		obj.ShootSecret = &ShootSecretControllerConfiguration{}
 	}
 	if obj.ShootStateSync == nil {
 		obj.ShootStateSync = &ShootStateSyncControllerConfiguration{}
 	}
-	if obj.SeedAPIServerNetworkPolicy == nil {
-		obj.SeedAPIServerNetworkPolicy = &SeedAPIServerNetworkPolicyControllerConfiguration{}
+	if obj.NetworkPolicy == nil {
+		obj.NetworkPolicy = &NetworkPolicyControllerConfiguration{}
 	}
 	if obj.ManagedSeed == nil {
 		obj.ManagedSeed = &ManagedSeedControllerConfiguration{}
@@ -230,29 +243,6 @@ func SetDefaults_ShootMonitoringConfig(obj *ShootMonitoringConfig) {
 	}
 }
 
-// SetDefaults_BackupEntryMigrationControllerConfiguration sets defaults for the backup entry migration controller.
-func SetDefaults_BackupEntryMigrationControllerConfiguration(obj *BackupEntryMigrationControllerConfiguration) {
-	if obj.ConcurrentSyncs == nil {
-		v := 5
-		obj.ConcurrentSyncs = &v
-	}
-
-	if obj.SyncPeriod == nil {
-		v := metav1.Duration{Duration: time.Minute}
-		obj.SyncPeriod = &v
-	}
-
-	if obj.GracePeriod == nil {
-		v := metav1.Duration{Duration: 10 * time.Minute}
-		obj.GracePeriod = &v
-	}
-
-	if obj.LastOperationStaleDuration == nil {
-		v := metav1.Duration{Duration: 2 * time.Minute}
-		obj.LastOperationStaleDuration = &v
-	}
-}
-
 // SetDefaults_BastionControllerConfiguration sets defaults for the backup bucket controller.
 func SetDefaults_BastionControllerConfiguration(obj *BastionControllerConfiguration) {
 	if obj.ConcurrentSyncs == nil {
@@ -294,11 +284,6 @@ func SetDefaults_ControllerInstallationRequiredControllerConfiguration(obj *Cont
 
 // SetDefaults_SeedControllerConfiguration sets defaults for the seed controller.
 func SetDefaults_SeedControllerConfiguration(obj *SeedControllerConfiguration) {
-	if obj.ConcurrentSyncs == nil {
-		v := DefaultControllerConcurrentSyncs
-		obj.ConcurrentSyncs = &v
-	}
-
 	if obj.SyncPeriod == nil {
 		v := DefaultControllerSyncPeriod
 		obj.SyncPeriod = &v
@@ -310,6 +295,14 @@ func SetDefaults_SeedControllerConfiguration(obj *SeedControllerConfiguration) {
 
 	if obj.LeaseResyncMissThreshold == nil {
 		obj.LeaseResyncMissThreshold = pointer.Int32(10)
+	}
+}
+
+// SetDefaults_SeedCareControllerConfiguration sets defaults for the seed care controller.
+func SetDefaults_SeedCareControllerConfiguration(obj *SeedCareControllerConfiguration) {
+	if obj.SyncPeriod == nil {
+		v := metav1.Duration{Duration: 30 * time.Second}
+		obj.SyncPeriod = &v
 	}
 }
 
@@ -363,37 +356,6 @@ func SetDefaults_ShootCareControllerConfiguration(obj *ShootCareControllerConfig
 	}
 }
 
-// SetDefaults_SeedCareControllerConfiguration sets defaults for the seed care controller.
-func SetDefaults_SeedCareControllerConfiguration(obj *SeedCareControllerConfiguration) {
-	if obj.SyncPeriod == nil {
-		v := metav1.Duration{Duration: 30 * time.Second}
-		obj.SyncPeriod = &v
-	}
-}
-
-// SetDefaults_ShootMigrationControllerConfiguration sets defaults for the shoot migration controller.
-func SetDefaults_ShootMigrationControllerConfiguration(obj *ShootMigrationControllerConfiguration) {
-	if obj.ConcurrentSyncs == nil {
-		v := 5
-		obj.ConcurrentSyncs = &v
-	}
-
-	if obj.SyncPeriod == nil {
-		v := metav1.Duration{Duration: time.Minute}
-		obj.SyncPeriod = &v
-	}
-
-	if obj.GracePeriod == nil {
-		v := metav1.Duration{Duration: 2 * time.Hour}
-		obj.GracePeriod = &v
-	}
-
-	if obj.LastOperationStaleDuration == nil {
-		v := metav1.Duration{Duration: 10 * time.Minute}
-		obj.LastOperationStaleDuration = &v
-	}
-}
-
 // SetDefaults_StaleExtensionHealthChecks sets defaults for the stale extension health checks.
 func SetDefaults_StaleExtensionHealthChecks(obj *StaleExtensionHealthChecks) {
 	if obj.Threshold == nil {
@@ -417,15 +379,10 @@ func SetDefaults_ShootStateSyncControllerConfiguration(obj *ShootStateSyncContro
 		v := 1
 		obj.ConcurrentSyncs = &v
 	}
-
-	if obj.SyncPeriod == nil {
-		v := metav1.Duration{Duration: time.Minute}
-		obj.SyncPeriod = &v
-	}
 }
 
-// SetDefaults_SeedAPIServerNetworkPolicyControllerConfiguration sets defaults for the seed apiserver endpoints controller.
-func SetDefaults_SeedAPIServerNetworkPolicyControllerConfiguration(obj *SeedAPIServerNetworkPolicyControllerConfiguration) {
+// SetDefaults_NetworkPolicyControllerConfiguration sets defaults for the seed apiserver endpoints controller.
+func SetDefaults_NetworkPolicyControllerConfiguration(obj *NetworkPolicyControllerConfiguration) {
 	if obj.ConcurrentSyncs == nil {
 		// only use few workers for each seed, as the API server endpoints should stay the same most of the time.
 		v := 3

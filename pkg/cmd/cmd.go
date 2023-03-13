@@ -11,6 +11,7 @@ import (
 
 	"github.com/23technologies/gardener-extension-shoot-flux/pkg/controller/lifecycle"
 	extensionscontroller "github.com/gardener/gardener/extensions/pkg/controller"
+	"github.com/gardener/gardener/extensions/pkg/controller/heartbeat"
 	"github.com/gardener/gardener/extensions/pkg/util"
 
 	"github.com/spf13/cobra"
@@ -36,6 +37,9 @@ func NewServiceControllerCommand() *cobra.Command {
 			if err := options.optionAggregator.Complete(); err != nil {
 				return fmt.Errorf("error completing options: %s", err)
 			}
+			if err := options.heartbeatOptions.Validate(); err != nil {
+				return err
+			}
 			cmd.SilenceUsage = true
 			return options.run(cmd.Context())
 		},
@@ -60,7 +64,7 @@ func (o *Options) run(ctx context.Context) error {
 	mgrOpts.MetricsBindAddress = "0"
 
 	mgrOpts.ClientDisableCacheFor = []client.Object{
-		&corev1.Secret{},    // applied for ManagedResources
+		&corev1.Secret{}, // applied for ManagedResources
 	}
 
 	mgr, err := manager.New(o.restOptions.Completed().Config, mgrOpts)
@@ -74,6 +78,7 @@ func (o *Options) run(ctx context.Context) error {
 
 	o.controllerOptions.Completed().Apply(&lifecycle.DefaultAddOptions.ControllerOptions)
 	o.lifecycleOptions.Completed().Apply(&lifecycle.DefaultAddOptions.ControllerOptions)
+	o.heartbeatOptions.Completed().Apply(&heartbeat.DefaultAddOptions)
 
 	if err := o.controllerSwitches.Completed().AddToManager(mgr); err != nil {
 		return fmt.Errorf("could not add controllers to manager: %s", err)

@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	runtimelog.SetLogger(logger.ZapLogger(false))
+	runtimelog.SetLogger(logger.MustNewZapLogger("", ""))
 
 	ctx := signals.SetupSignalHandler()
 	if err := cmd.NewServiceControllerCommand().ExecuteContext(ctx); err != nil {

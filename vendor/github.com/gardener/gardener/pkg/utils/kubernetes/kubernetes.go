@@ -16,6 +16,8 @@ package kubernetes
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"sort"
@@ -23,13 +25,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/gardener/pkg/client/kubernetes"
-	"github.com/gardener/gardener/pkg/utils/retry"
-
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
-	certificatesv1 "k8s.io/api/certificates/v1"
-	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -39,9 +36,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	clientcmdv1 "k8s.io/client-go/tools/clientcmd/api/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/gardener/gardener/pkg/client/kubernetes"
+	"github.com/gardener/gardener/pkg/utils/retry"
 )
 
 // TruncateLabelValue truncates a string at 63 characters so it's suitable for a label value.
@@ -635,24 +638,6 @@ func MostRecentCompleteLogs(
 	return fmt.Sprintf("%s\n...\n%s", firstLogLines, lastLogLines), nil
 }
 
-// IgnoreAlreadyExists returns nil on AlreadyExists errors.
-// All other values that are not AlreadyExists errors or nil are returned unmodified.
-func IgnoreAlreadyExists(err error) error {
-	if apierrors.IsAlreadyExists(err) {
-		return nil
-	}
-	return err
-}
-
-// CertificatesV1beta1UsagesToCertificatesV1Usages converts []certificatesv1beta1.KeyUsage to []certificatesv1.KeyUsage.
-func CertificatesV1beta1UsagesToCertificatesV1Usages(usages []certificatesv1beta1.KeyUsage) []certificatesv1.KeyUsage {
-	var out []certificatesv1.KeyUsage
-	for _, u := range usages {
-		out = append(out, certificatesv1.KeyUsage(u))
-	}
-	return out
-}
-
 // NewKubeconfig returns a new kubeconfig structure.
 func NewKubeconfig(contextName string, cluster clientcmdv1.Cluster, authInfo clientcmdv1.AuthInfo) *clientcmdv1.Config {
 	if !strings.HasPrefix(cluster.Server, "https://") {
@@ -680,10 +665,13 @@ func NewKubeconfig(contextName string, cluster clientcmdv1.Cluster, authInfo cli
 }
 
 // ObjectKeyForCreateWebhooks creates an object key for an object handled by webhooks registered for CREATE verbs.
-func ObjectKeyForCreateWebhooks(obj client.Object) client.ObjectKey {
+func ObjectKeyForCreateWebhooks(obj client.Object, req admission.Request) client.ObjectKey {
 	namespace := obj.GetNamespace()
-	if len(namespace) == 0 {
-		namespace = metav1.NamespaceDefault
+
+	// In webhooks the namespace is not always set in objects due to https://github.com/kubernetes/kubernetes/issues/88282,
+	// so try to get the namespace information from the request directly, otherwise the object is presumably not namespaced.
+	if len(namespace) == 0 && len(req.Namespace) != 0 {
+		namespace = req.Namespace
 	}
 
 	name := obj.GetName()
@@ -692,4 +680,69 @@ func ObjectKeyForCreateWebhooks(obj client.Object) client.ObjectKey {
 	}
 
 	return client.ObjectKey{Namespace: namespace, Name: name}
+}
+
+// ClientCertificateFromRESTConfig returns the client certificate used inside a REST config.
+func ClientCertificateFromRESTConfig(restConfig *rest.Config) (*tls.Certificate, error) {
+	cert, err := tls.X509KeyPair(restConfig.CertData, restConfig.KeyData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse X509 certificate: %w", err)
+	}
+
+	if len(cert.Certificate) < 1 {
+		return nil, fmt.Errorf("the X509 certificate is invalid, no cert/key data found")
+	}
+
+	certs, err := x509.ParseCertificates(cert.Certificate[0])
+	if err != nil {
+		return nil, fmt.Errorf("the X509 certificate bundle cannot be parsed: %w", err)
+	}
+
+	if len(certs) < 1 {
+		return nil, fmt.Errorf("the X509 certificate bundle does not contain exactly one certificate")
+	}
+
+	cert.Leaf = certs[0]
+	return &cert, nil
+}
+
+// TolerationForTaint returns the corresponding toleration for the given taint.
+func TolerationForTaint(taint corev1.Taint) corev1.Toleration {
+	operator := corev1.TolerationOpEqual
+	if taint.Value == "" {
+		operator = corev1.TolerationOpExists
+	}
+
+	return corev1.Toleration{
+		Key:      taint.Key,
+		Operator: operator,
+		Value:    taint.Value,
+		Effect:   taint.Effect,
+	}
+}
+
+// ComparableTolerations contains information to transform an ordinary 'corev1.Toleration' object to a semantically
+// comparable object that is fully compatible with the 'comparable' Golang interface, see https://github.com/golang/go/blob/de6abd78893e91f26337eb399644b7a6bc3ea583/src/builtin/builtin.go#L102.
+type ComparableTolerations struct {
+	tolerationSeconds map[int64]*int64
+}
+
+// Transform takes a toleration object and exchanges the 'TolerationSeconds' pointer if set. The int64 value will
+// be the same but pointers will be **reused** for all passed tolerations that have the same underlying toleration seconds value.
+func (c *ComparableTolerations) Transform(toleration corev1.Toleration) corev1.Toleration {
+	if toleration.TolerationSeconds == nil {
+		return toleration
+	}
+
+	if c.tolerationSeconds == nil {
+		c.tolerationSeconds = make(map[int64]*int64)
+	}
+
+	tolerationSeconds := *toleration.TolerationSeconds
+	if _, ok := c.tolerationSeconds[tolerationSeconds]; !ok {
+		c.tolerationSeconds[tolerationSeconds] = pointer.Int64(tolerationSeconds)
+	}
+
+	toleration.TolerationSeconds = c.tolerationSeconds[tolerationSeconds]
+	return toleration
 }
