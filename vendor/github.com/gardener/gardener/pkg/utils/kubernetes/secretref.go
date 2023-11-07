@@ -1,4 +1,4 @@
-// Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,19 @@ func GetSecretByReference(ctx context.Context, c client.Reader, ref *corev1.Secr
 		return nil, err
 	}
 	return secret, nil
+}
+
+// GetSecretMetadataByReference returns the secret referenced by the given secret reference.
+func GetSecretMetadataByReference(ctx context.Context, c client.Reader, ref *corev1.SecretReference) (*metav1.PartialObjectMetadata, error) {
+	metadata := &metav1.PartialObjectMetadata{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		}}
+	if err := c.Get(ctx, Key(ref.Namespace, ref.Name), metadata); err != nil {
+		return nil, err
+	}
+	return metadata, nil
 }
 
 // DeleteSecretByReference deletes the secret referenced by the given secret reference.

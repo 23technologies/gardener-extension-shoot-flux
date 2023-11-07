@@ -1,4 +1,4 @@
-// Copyright (c) 2023 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2023 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,19 +15,27 @@
 package gardener
 
 import (
+	"github.com/Masterminds/semver/v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	resourcesv1alpha1 "github.com/gardener/gardener/pkg/apis/resources/v1alpha1"
+	"github.com/gardener/gardener/pkg/utils/version"
 )
 
 // ReconcileTopologyAwareRoutingMetadata adds (or removes) the required annotation and label to make a Service topology-aware.
-func ReconcileTopologyAwareRoutingMetadata(service *corev1.Service, topologyAwareRoutingEnabled bool) {
+func ReconcileTopologyAwareRoutingMetadata(service *corev1.Service, topologyAwareRoutingEnabled bool, k8sVersion *semver.Version) {
 	if topologyAwareRoutingEnabled {
-		metav1.SetMetaDataAnnotation(&service.ObjectMeta, corev1.AnnotationTopologyAwareHints, "auto")
+		if version.ConstraintK8sGreaterEqual127.Check(k8sVersion) {
+			metav1.SetMetaDataAnnotation(&service.ObjectMeta, corev1.AnnotationTopologyMode, "auto")
+			delete(service.Annotations, corev1.DeprecatedAnnotationTopologyAwareHints)
+		} else {
+			metav1.SetMetaDataAnnotation(&service.ObjectMeta, corev1.DeprecatedAnnotationTopologyAwareHints, "auto")
+		}
 		metav1.SetMetaDataLabel(&service.ObjectMeta, resourcesv1alpha1.EndpointSliceHintsConsider, "true")
 	} else {
-		delete(service.Annotations, corev1.AnnotationTopologyAwareHints)
+		delete(service.Annotations, corev1.AnnotationTopologyMode)
+		delete(service.Annotations, corev1.DeprecatedAnnotationTopologyAwareHints)
 		delete(service.Labels, resourcesv1alpha1.EndpointSliceHintsConsider)
 	}
 }

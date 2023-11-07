@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package extension
 
 import (
+	"context"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -58,17 +59,17 @@ type AddArgs struct {
 }
 
 // Add adds an Extension controller to the given manager using the given AddArgs.
-func Add(mgr manager.Manager, args AddArgs) error {
-	args.ControllerOptions.Reconciler = NewReconciler(args)
-	return add(mgr, args)
+func Add(ctx context.Context, mgr manager.Manager, args AddArgs) error {
+	args.ControllerOptions.Reconciler = NewReconciler(mgr, args)
+	return add(ctx, mgr, args)
 }
 
 // DefaultPredicates returns the default predicates for an extension reconciler.
-func DefaultPredicates(ignoreOperationAnnotation bool) []predicate.Predicate {
-	return extensionspredicate.DefaultControllerPredicates(ignoreOperationAnnotation, extensionspredicate.ShootNotFailedPredicate())
+func DefaultPredicates(ctx context.Context, mgr manager.Manager, ignoreOperationAnnotation bool) []predicate.Predicate {
+	return extensionspredicate.DefaultControllerPredicates(ignoreOperationAnnotation, extensionspredicate.ShootNotFailedPredicate(ctx, mgr))
 }
 
-func add(mgr manager.Manager, args AddArgs) error {
+func add(ctx context.Context, mgr manager.Manager, args AddArgs) error {
 	ctrl, err := controller.New(args.Name, mgr, args.ControllerOptions)
 	if err != nil {
 		return err
@@ -78,12 +79,12 @@ func add(mgr manager.Manager, args AddArgs) error {
 
 	if args.IgnoreOperationAnnotation {
 		if err := ctrl.Watch(
-			&source.Kind{Type: &extensionsv1alpha1.Cluster{}},
-			mapper.EnqueueRequestsFrom(ClusterToExtensionMapper(predicates...), mapper.UpdateWithNew, mgr.GetLogger().WithName(args.Name)),
+			source.Kind(mgr.GetCache(), &extensionsv1alpha1.Cluster{}),
+			mapper.EnqueueRequestsFrom(ctx, mgr.GetCache(), ClusterToExtensionMapper(mgr, predicates...), mapper.UpdateWithNew, mgr.GetLogger().WithName(args.Name)),
 		); err != nil {
 			return err
 		}
 	}
 
-	return ctrl.Watch(&source.Kind{Type: &extensionsv1alpha1.Extension{}}, &handler.EnqueueRequestForObject{}, predicates...)
+	return ctrl.Watch(source.Kind(mgr.GetCache(), &extensionsv1alpha1.Extension{}), &handler.EnqueueRequestForObject{}, predicates...)
 }

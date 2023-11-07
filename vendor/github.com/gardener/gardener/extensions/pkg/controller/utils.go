@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,25 +56,25 @@ func init() {
 }
 
 // AddToManagerBuilder aggregates various AddToManager functions.
-type AddToManagerBuilder []func(manager.Manager) error
+type AddToManagerBuilder []func(context.Context, manager.Manager) error
 
 // NewAddToManagerBuilder creates a new AddToManagerBuilder and registers the given functions.
-func NewAddToManagerBuilder(funcs ...func(manager.Manager) error) AddToManagerBuilder {
+func NewAddToManagerBuilder(funcs ...func(context.Context, manager.Manager) error) AddToManagerBuilder {
 	var builder AddToManagerBuilder
 	builder.Register(funcs...)
 	return builder
 }
 
 // Register registers the given functions in this builder.
-func (a *AddToManagerBuilder) Register(funcs ...func(manager.Manager) error) {
+func (a *AddToManagerBuilder) Register(funcs ...func(context.Context, manager.Manager) error) {
 	*a = append(*a, funcs...)
 }
 
 // AddToManager traverses over all AddToManager-functions of this builder, sequentially applying
 // them. It exits on the first error and returns it.
-func (a *AddToManagerBuilder) AddToManager(m manager.Manager) error {
+func (a *AddToManagerBuilder) AddToManager(c context.Context, m manager.Manager) error {
 	for _, f := range *a {
-		if err := f(m); err != nil {
+		if err := f(c, m); err != nil {
 			return err
 		}
 	}
@@ -157,22 +157,4 @@ func ShouldSkipOperation(operationType gardencorev1beta1.LastOperationType, obj 
 // If the object kind doesn't match the given reference kind this will result in an error.
 func GetObjectByReference(ctx context.Context, c client.Client, ref *autoscalingv1.CrossVersionObjectReference, namespace string, obj client.Object) error {
 	return c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: v1beta1constants.ReferencedResourcesPrefix + ref.Name}, obj)
-}
-
-// UseTokenRequestor returns true when the provided Gardener version is large enough for supporting acquiring tokens
-// for shoot cluster control plane components running in the seed based on the TokenRequestor controller of
-// gardener-resource-manager (https://github.com/gardener/gardener/blob/master/docs/concepts/resource-manager.md#tokenrequestor).
-// Deprecated: new extension versions need to require at least Gardener version v1.36 and use the token requestor by
-// default which makes this function obsolete.
-func UseTokenRequestor(gardenerVersion string) (bool, error) {
-	return true, nil
-}
-
-// UseServiceAccountTokenVolumeProjection returns true when the provided Gardener version is large enough for supporting
-// automatic token volume projection for components running in the seed and shoot clusters based on the respective
-// webhook part of gardener-resource-manager (https://github.com/gardener/gardener/blob/master/docs/concepts/resource-manager.md#auto-mounting-projected-serviceaccount-tokens).
-// Deprecated: new extension versions need to require at least Gardener version v1.37 and use projected service account
-// token volumes by default which makes this function obsolete.
-func UseServiceAccountTokenVolumeProjection(gardenerVersion string) (bool, error) {
-	return true, nil
 }

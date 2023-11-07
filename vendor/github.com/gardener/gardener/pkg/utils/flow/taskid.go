@@ -1,4 +1,4 @@
-// Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 
 package flow
 
-import "sort"
+import (
+	"slices"
+)
 
 // TaskID is an id of a task.
 type TaskID string
@@ -114,7 +116,7 @@ func (t TaskIDs) List() TaskIDSlice {
 	for k := range t {
 		out = append(out, k)
 	}
-	sort.Sort(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -130,7 +132,7 @@ func (t TaskIDs) UnsortedStringList() []string {
 // StringList returns the elements of this in an ordered string slice.
 func (t TaskIDs) StringList() []string {
 	out := t.UnsortedStringList()
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

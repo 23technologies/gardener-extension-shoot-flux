@@ -6,7 +6,7 @@
 Its main principle is to leverage Kubernetes concepts for all of its tasks.
 
 This controller implements Gardener's extension contract for the `shoot-flux` extension.
-The latest release's `ControllerRegistration` resource that can be used to register this controller to Gardener can be found [here](https://github.com/23technologies/gardener-extension-shoot-flux/releases/latest/download/controller-registration.yaml).
+The latest release's `ControllerRegistration` resource that can be used to register this controller to Gardener can be found [here](https://github.com/stackitcloud/gardener-extension-shoot-flux/releases/latest/download/controller-registration.yaml).
 
 Please find more information regarding the extensibility concepts and a detailed proposal [here](https://github.com/gardener/gardener/blob/master/docs/proposals/01-extensibility.md).
 
@@ -43,7 +43,7 @@ However, in certain scenarios, this approach will dramatically improve the effec
 
 ## Use it as a gardener operator
 Of course, you need to apply the `controller-registration` resources to the garden cluster first.
-You can find the corresponding yaml-files in our [releases](https://github.com/23technologies/gardener-extension-shoot-flux/releases).
+You can find the corresponding yaml-files in our [releases](https://github.com/stackitcloud/gardener-extension-shoot-flux/releases).
 Moreover, you will need some configuration pointing to the git repository you want to use as a basis for flux.
 This configuration is provided on a per-project basis via a `ConfigMap`:
 ``` yaml

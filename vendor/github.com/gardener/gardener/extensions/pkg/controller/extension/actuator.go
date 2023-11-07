@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@ type Actuator interface {
 	Reconcile(context.Context, logr.Logger, *extensionsv1alpha1.Extension) error
 	// Delete the Extension resource.
 	Delete(context.Context, logr.Logger, *extensionsv1alpha1.Extension) error
+	// ForceDelete forcefully deletes the Extension resource.
+	ForceDelete(context.Context, logr.Logger, *extensionsv1alpha1.Extension) error
 	// Restore the Extension resource.
 	Restore(context.Context, logr.Logger, *extensionsv1alpha1.Extension) error
 	// Migrate the Extension resource.

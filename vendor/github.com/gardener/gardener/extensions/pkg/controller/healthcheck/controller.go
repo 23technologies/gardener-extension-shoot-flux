@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package healthcheck
 
 import (
+	"context"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,7 @@ import (
 	extensionsconfig "github.com/gardener/gardener/extensions/pkg/apis/config"
 	extensionspredicate "github.com/gardener/gardener/extensions/pkg/predicate"
 	"github.com/gardener/gardener/pkg/api/extensions"
+	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/controllerutils/mapper"
 	"github.com/gardener/gardener/pkg/utils"
@@ -76,10 +78,11 @@ type DefaultAddArgs struct {
 // They are used as the .type field of the Condition that the HealthCheck controller writes to the extension resource.
 // The field groupVersionKind stores the GroupVersionKind of the extension resource
 type RegisteredExtension struct {
-	extension            extensionsv1alpha1.Object
-	getExtensionObjFunc  GetExtensionObjectFunc
-	healthConditionTypes []string
-	groupVersionKind     schema.GroupVersionKind
+	extension              extensionsv1alpha1.Object
+	getExtensionObjFunc    GetExtensionObjectFunc
+	healthConditionTypes   []string
+	groupVersionKind       schema.GroupVersionKind
+	conditionTypesToRemove sets.Set[gardencorev1beta1.ConditionType]
 }
 
 // DefaultRegistration configures the default health check NewActuator to execute the provided health checks and adds it to the provided controller-runtime manager.
@@ -93,7 +96,7 @@ type RegisteredExtension struct {
 // custom predicates allow for fine-grained control which resources to watch
 // healthChecks defines the checks to execute mapped to the healthConditionTypes its contributing to (e.g checkDeployment in Seed -> ControlPlaneHealthy).
 // register returns a runtime representation of the extension resource to register it with the controller-runtime
-func DefaultRegistration(extensionType string, kind schema.GroupVersionKind, getExtensionObjListFunc GetExtensionObjectListFunc, getExtensionObjFunc GetExtensionObjectFunc, mgr manager.Manager, opts DefaultAddArgs, customPredicates []predicate.Predicate, healthChecks []ConditionTypeToHealthCheck) error {
+func DefaultRegistration(ctx context.Context, extensionType string, kind schema.GroupVersionKind, getExtensionObjListFunc GetExtensionObjectListFunc, getExtensionObjFunc GetExtensionObjectFunc, mgr manager.Manager, opts DefaultAddArgs, customPredicates []predicate.Predicate, healthChecks []ConditionTypeToHealthCheck, conditionTypesToRemove sets.Set[gardencorev1beta1.ConditionType]) error {
 	predicates := append(DefaultPredicates(), customPredicates...)
 	opts.Controller.RecoverPanic = pointer.Bool(true)
 
@@ -105,7 +108,7 @@ func DefaultRegistration(extensionType string, kind schema.GroupVersionKind, get
 		GetExtensionObjListFunc: getExtensionObjListFunc,
 	}
 
-	if err := args.RegisterExtension(getExtensionObjFunc, getHealthCheckTypes(healthChecks), kind); err != nil {
+	if err := args.RegisterExtension(getExtensionObjFunc, getHealthCheckTypes(healthChecks), kind, conditionTypesToRemove); err != nil {
 		return err
 	}
 
@@ -114,8 +117,8 @@ func DefaultRegistration(extensionType string, kind schema.GroupVersionKind, get
 		shootRestOptions = *opts.HealthCheckConfig.ShootRESTOptions
 	}
 
-	healthCheckActuator := NewActuator(args.Type, args.GetExtensionGroupVersionKind().Kind, getExtensionObjFunc, healthChecks, shootRestOptions)
-	return Register(mgr, args, healthCheckActuator)
+	healthCheckActuator := NewActuator(mgr, args.Type, args.GetExtensionGroupVersionKind().Kind, getExtensionObjFunc, healthChecks, shootRestOptions)
+	return Register(ctx, mgr, args, healthCheckActuator)
 }
 
 // RegisterExtension registered a resource and its corresponding healthCheckTypes.
@@ -123,17 +126,18 @@ func DefaultRegistration(extensionType string, kind schema.GroupVersionKind, get
 // The controller writes the healthCheckTypes as a condition.type into the extension resource.
 // To contribute to the Shoot's health, the Gardener checks each extension for a Health Condition Type of SystemComponentsHealthy, EveryNodeReady, ControlPlaneHealthy.
 // However extensions are free to choose any healthCheckType
-func (a *AddArgs) RegisterExtension(getExtensionObjFunc GetExtensionObjectFunc, conditionTypes []string, kind schema.GroupVersionKind) error {
+func (a *AddArgs) RegisterExtension(getExtensionObjFunc GetExtensionObjectFunc, conditionTypes []string, kind schema.GroupVersionKind, conditionTypesToRemove sets.Set[gardencorev1beta1.ConditionType]) error {
 	acc, err := extensions.Accessor(getExtensionObjFunc())
 	if err != nil {
 		return err
 	}
 
 	a.registeredExtension = &RegisteredExtension{
-		extension:            acc,
-		healthConditionTypes: conditionTypes,
-		groupVersionKind:     kind,
-		getExtensionObjFunc:  getExtensionObjFunc,
+		extension:              acc,
+		healthConditionTypes:   conditionTypes,
+		groupVersionKind:       kind,
+		getExtensionObjFunc:    getExtensionObjFunc,
+		conditionTypesToRemove: conditionTypesToRemove,
 	}
 	return nil
 }
@@ -155,12 +159,12 @@ func DefaultPredicates() []predicate.Predicate {
 // Register the extension resource. Must be of type extensionsv1alpha1.Object
 // Add creates a new Reconciler and adds it to the Manager.
 // and Start it when the Manager is Started.
-func Register(mgr manager.Manager, args AddArgs, actuator HealthCheckActuator) error {
-	args.ControllerOptions.Reconciler = NewReconciler(actuator, *args.registeredExtension, args.SyncPeriod)
-	return add(mgr, args)
+func Register(ctx context.Context, mgr manager.Manager, args AddArgs, actuator HealthCheckActuator) error {
+	args.ControllerOptions.Reconciler = NewReconciler(mgr, actuator, *args.registeredExtension, args.SyncPeriod)
+	return add(ctx, mgr, args)
 }
 
-func add(mgr manager.Manager, args AddArgs) error {
+func add(ctx context.Context, mgr manager.Manager, args AddArgs) error {
 	// generate random string to create unique manager name, in case multiple managers register the same extension resource
 	str, err := utils.GenerateRandomString(10)
 	if err != nil {
@@ -178,15 +182,15 @@ func add(mgr manager.Manager, args AddArgs) error {
 	// add type predicate to only watch registered resource (e.g ControlPlane) with a certain type (e.g aws)
 	predicates := extensionspredicate.AddTypePredicate(args.Predicates, args.Type)
 
-	if err := ctrl.Watch(&source.Kind{Type: args.registeredExtension.getExtensionObjFunc()}, &handler.EnqueueRequestForObject{}, predicates...); err != nil {
+	if err := ctrl.Watch(source.Kind(mgr.GetCache(), args.registeredExtension.getExtensionObjFunc()), &handler.EnqueueRequestForObject{}, predicates...); err != nil {
 		return err
 	}
 
 	// watch Cluster of Shoot provider type (e.g aws)
 	// this is to be notified when the Shoot is being hibernated (stop health checks) and wakes up (start health checks again)
 	return ctrl.Watch(
-		&source.Kind{Type: &extensionsv1alpha1.Cluster{}},
-		mapper.EnqueueRequestsFrom(mapper.ClusterToObjectMapper(args.GetExtensionObjListFunc, predicates), mapper.UpdateWithNew, ctrl.GetLogger()),
+		source.Kind(mgr.GetCache(), &extensionsv1alpha1.Cluster{}),
+		mapper.EnqueueRequestsFrom(ctx, mgr.GetCache(), mapper.ClusterToObjectMapper(mgr, args.GetExtensionObjListFunc, predicates), mapper.UpdateWithNew, ctrl.GetLogger()),
 	)
 }
 

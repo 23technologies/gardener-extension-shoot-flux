@@ -13,9 +13,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/google/go-github/v44/github"
-
-	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
+	"github.com/fluxcd/flux2/pkg/manifestgen/sourcesecret"
+	kustomizecontrollerv1beta2 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	"github.com/fluxcd/pkg/apis/meta"
+	sourcecontrollerv1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	resourcesv1alpha1 "github.com/gardener/gardener/pkg/apis/resources/v1alpha1"
@@ -25,8 +26,7 @@ import (
 	managedresources "github.com/gardener/gardener/pkg/utils/managedresources"
 	"github.com/gardener/gardener/pkg/utils/retry"
 	"github.com/go-logr/logr"
-	"sigs.k8s.io/yaml"
-
+	"github.com/google/go-github/v44/github"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,11 +34,9 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 
-	"github.com/fluxcd/flux2/pkg/manifestgen/sourcesecret"
-	kustomizecontrollerv1beta2 "github.com/fluxcd/kustomize-controller/api/v1beta2"
-	"github.com/fluxcd/pkg/apis/meta"
-	sourcecontrollerv1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/constants"
 )
 
 const (
@@ -180,6 +178,11 @@ func (a *actuator) Delete(ctx context.Context, _ logr.Logger, ex *extensionsv1al
 		return err
 	}
 
+	return nil
+}
+
+func (a *actuator) ForceDelete(ctx context.Context, _ logr.Logger, _ *extensionsv1alpha1.Extension) error {
+	// TODO: Support ForceDelete
 	return nil
 }
 

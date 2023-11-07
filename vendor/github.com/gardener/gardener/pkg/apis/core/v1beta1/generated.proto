@@ -1,5 +1,5 @@
 /*
-Copyright (c) SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,6 +32,31 @@ import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 // Package-wide variables from generator "generated".
 option go_package = "github.com/gardener/gardener/pkg/apis/core/v1beta1";
 
+// APIServerLogging contains configuration for the logs level and http access logs
+message APIServerLogging {
+  // Verbosity is the kube-apiserver log verbosity level
+  // Defaults to 2.
+  // +optional
+  optional int32 verbosity = 1;
+
+  // HTTPAccessVerbosity is the kube-apiserver access logs level
+  // +optional
+  optional int32 httpAccessVerbosity = 2;
+}
+
+// APIServerRequests contains configuration for request-specific settings for the kube-apiserver.
+message APIServerRequests {
+  // MaxNonMutatingInflight is the maximum number of non-mutating requests in flight at a given time. When the server
+  // exceeds this, it rejects requests.
+  // +optional
+  optional int32 maxNonMutatingInflight = 1;
+
+  // MaxMutatingInflight is the maximum number of mutating requests in flight at a given time. When the server
+  // exceeds this, it rejects requests.
+  // +optional
+  optional int32 maxMutatingInflight = 2;
+}
+
 // Addon allows enabling or disabling a specific addon and is used to derive from.
 message Addon {
   // Enabled indicates whether the addon is enabled or not.
@@ -61,6 +86,10 @@ message AdmissionPlugin {
   // Disabled specifies whether this plugin should be disabled.
   // +optional
   optional bool disabled = 3;
+
+  // KubeconfigSecretName specifies the name of a secret containing the kubeconfig for this admission plugin.
+  // +optional
+  optional string kubeconfigSecretName = 4;
 }
 
 // Alerting contains information about how alerting will be done (i.e. who will receive alerts and how).
@@ -377,6 +406,14 @@ message ClusterAutoscaler {
   // IgnoreTaints specifies a list of taint keys to ignore in node templates when considering to scale a node group.
   // +optional
   repeated string ignoreTaints = 10;
+
+  // NewPodScaleUpDelay specifies how long CA should ignore newly created pods before they have to be considered for scale-up.
+  // +optional
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration newPodScaleUpDelay = 11;
+
+  // MaxEmptyBulkDelete specifies the maximum number of empty nodes that can be deleted at the same time (default: 10).
+  // +optional
+  optional int32 maxEmptyBulkDelete = 12;
 }
 
 // Condition holds the information about the state of a resource.
@@ -516,7 +553,7 @@ message ControllerRegistrationDeployment {
   // +optional
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector seedSelector = 4;
 
-  // DeploymentRefs holds references to `ControllerDeployments`. Only one element is support now.
+  // DeploymentRefs holds references to `ControllerDeployments`. Only one element is supported currently.
   // +optional
   repeated DeploymentRef deploymentRefs = 5;
 }
@@ -575,6 +612,11 @@ message ControllerResource {
   //  Migrate: "BeforeKubeAPIServer"
   // +optional
   optional ControllerResourceLifecycle lifecycle = 6;
+
+  // WorkerlessSupported specifies whether this ControllerResource supports Workerless Shoot clusters.
+  // This field is only relevant when kind is "Extension".
+  // +optional
+  optional bool workerlessSupported = 7;
 }
 
 // ControllerResourceLifecycle defines the lifecycle of a controller resource.
@@ -646,6 +688,7 @@ message DNSIncludeExclude {
 // DNSProvider contains information about a DNS provider.
 message DNSProvider {
   // Domains contains information about which domains shall be included/excluded for this provider.
+  // Deprecated: This field is deprecated and will be removed in Gardener release v1.87.
   // +optional
   optional DNSIncludeExclude domains = 1;
 
@@ -665,6 +708,7 @@ message DNSProvider {
   optional string type = 4;
 
   // Zones contains information about which hosted zones shall be included/excluded for this provider.
+  // Deprecated: This field is deprecated and will be removed in Gardener release v1.87.
   // +optional
   optional DNSIncludeExclude zones = 5;
 }
@@ -865,7 +909,7 @@ message HibernationSchedule {
   // +optional
   optional string end = 2;
 
-  // Location is the time location in which both start and and shall be evaluated.
+  // Location is the time location in which both start and shall be evaluated.
   // +optional
   optional string location = 3;
 }
@@ -901,10 +945,13 @@ message HorizontalPodAutoscalerConfig {
   optional double tolerance = 6;
 }
 
-// Ingress configures the Ingress specific settings of the Seed cluster
+// Ingress configures the Ingress specific settings of the cluster
 message Ingress {
-  // Domain specifies the IngressDomain of the Seed cluster pointing to the ingress controller endpoint. It will be used
-  // to construct ingress URLs for system applications running in Shoot clusters. Once set this field is immutable.
+  // Domain specifies the IngressDomain of the cluster pointing to the ingress controller endpoint. It will be used
+  // to construct ingress URLs for system applications running in Shoot/Garden clusters. Once set this field is immutable.
+  // +kubebuilder:validation:MaxLength=253
+  // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+  // +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
   optional string domain = 1;
 
   // Controller configures a Gardener managed Ingress Controller listening on the ingressDomain
@@ -913,12 +960,61 @@ message Ingress {
 
 // IngressController enables a Gardener managed Ingress Controller listening on the ingressDomain
 message IngressController {
-  // Kind defines which kind of IngressController to use, for example `nginx`
+  // Kind defines which kind of IngressController to use. At the moment only `nginx` is supported
+  // +kubebuilder:validation:Enum="nginx"
   optional string kind = 1;
 
   // ProviderConfig specifies infrastructure specific configuration for the ingressController
   // +optional
   optional k8s.io.apimachinery.pkg.runtime.RawExtension providerConfig = 2;
+}
+
+// InternalSecret holds secret data of a certain type. The total bytes of the values in
+// the Data field must be less than MaxSecretSize bytes.
+message InternalSecret {
+  // Standard object's metadata.
+  // More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+  // +optional
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  // Immutable, if set to true, ensures that data stored in the Secret cannot
+  // be updated (only object metadata can be modified).
+  // If not set to true, the field can be modified at any time.
+  // Defaulted to nil.
+  // +optional
+  optional bool immutable = 5;
+
+  // Data contains the secret data. Each key must consist of alphanumeric
+  // characters, '-', '_' or '.'. The serialized form of the secret data is a
+  // base64 encoded string, representing the arbitrary (possibly non-string)
+  // data value here. Described in https://tools.ietf.org/html/rfc4648#section-4
+  // +optional
+  map<string, bytes> data = 2;
+
+  // stringData allows specifying non-binary secret data in string form.
+  // It is provided as a write-only input field for convenience.
+  // All keys and values are merged into the data field on write, overwriting any existing values.
+  // The stringData field is never output when reading from the API.
+  // +k8s:conversion-gen=false
+  // +optional
+  map<string, string> stringData = 4;
+
+  // Used to facilitate programmatic handling of secret data.
+  // More info: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
+  // +optional
+  optional string type = 3;
+}
+
+// InternalSecretList is a list of InternalSecret.
+message InternalSecretList {
+  // Standard list metadata.
+  // More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+  // +optional
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  // Items is a list of secret objects.
+  // More info: https://kubernetes.io/docs/concepts/configuration/secret
+  repeated InternalSecret items = 2;
 }
 
 // KubeAPIServerConfig contains configuration settings for the kube-apiserver.
@@ -941,12 +1037,6 @@ message KubeAPIServerConfig {
   // AuditConfig contains configuration settings for the audit of the kube-apiserver.
   // +optional
   optional AuditConfig auditConfig = 4;
-
-  // EnableBasicAuthentication defines whether basic authentication should be enabled for this cluster or not.
-  //
-  // Deprecated: basic authentication has been removed in Kubernetes v1.19+. The field is no-op and will be removed in a future version.
-  // +optional
-  optional bool enableBasicAuthentication = 5;
 
   // OIDCConfig contains configuration settings for the OIDC provider.
   // +optional
@@ -973,7 +1063,7 @@ message KubeAPIServerConfig {
 
   // Requests contains configuration for request-specific settings for the kube-apiserver.
   // +optional
-  optional KubeAPIServerRequests requests = 10;
+  optional APIServerRequests requests = 10;
 
   // EnableAnonymousAuthentication defines whether anonymous requests to the secure port
   // of the API server should be allowed (flag `--anonymous-auth`).
@@ -988,7 +1078,7 @@ message KubeAPIServerConfig {
 
   // Logging contains configuration for the log level and HTTP access logs.
   // +optional
-  optional KubeAPIServerLogging logging = 13;
+  optional APIServerLogging logging = 13;
 
   // DefaultNotReadyTolerationSeconds indicates the tolerationSeconds of the toleration for notReady:NoExecute
   // that is added by default to every pod that does not already have such a toleration (flag `--default-not-ready-toleration-seconds`).
@@ -1003,31 +1093,6 @@ message KubeAPIServerConfig {
   // Defaults to 300.
   // +optional
   optional int64 defaultUnreachableTolerationSeconds = 15;
-}
-
-// KubeAPIServerLogging contains configuration for the logs level and http access logs
-message KubeAPIServerLogging {
-  // Verbosity is the kube-apiserver log verbosity level
-  // Defaults to 2.
-  // +optional
-  optional int32 verbosity = 1;
-
-  // HTTPAccessVerbosity is the kube-apiserver access logs level
-  // +optional
-  optional int32 httpAccessVerbosity = 2;
-}
-
-// KubeAPIServerRequests contains configuration for request-specific settings for the kube-apiserver.
-message KubeAPIServerRequests {
-  // MaxNonMutatingInflight is the maximum number of non-mutating requests in flight at a given time. When the server
-  // exceeds this, it rejects requests.
-  // +optional
-  optional int32 maxNonMutatingInflight = 1;
-
-  // MaxMutatingInflight is the maximum number of mutating requests in flight at a given time. When the server
-  // exceeds this, it rejects requests.
-  // +optional
-  optional int32 maxMutatingInflight = 2;
 }
 
 // KubeControllerManagerConfig contains configuration settings for the kube-controller-manager.
@@ -1232,6 +1297,10 @@ message KubeletConfig {
   //  "5m" for Kubernetes >= v1.26.
   // +optional
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration streamingConnectionIdleTimeout = 25;
+
+  // MemorySwap configures swap memory available to container workloads.
+  // +optional
+  optional MemorySwapConfiguration memorySwap = 26;
 }
 
 // KubeletConfigEviction contains kubelet eviction thresholds supporting either a resource.Quantity or a percentage based value.
@@ -1354,6 +1423,9 @@ message Kubernetes {
   optional KubeletConfig kubelet = 7;
 
   // Version is the semantic Kubernetes version to use for the Shoot cluster.
+  // Defaults to the highest supported minor and patch version given in the referenced cloud profile.
+  // The version can be omitted completely or partially specified, e.g. `<major>.<minor>`.
+  // +optional
   optional string version = 8;
 
   // VerticalPodAutoscaler contains the configuration flags for the Kubernetes vertical pod autoscaler.
@@ -1492,6 +1564,13 @@ message MachineImage {
   // +patchMergeKey=version
   // +patchStrategy=merge
   repeated MachineImageVersion versions = 2;
+
+  // UpdateStrategy is the update strategy to use for the machine image. Possible values are:
+  //  - patch: update to the latest patch version of the current minor version.
+  //  - minor: update to the latest minor and patch version.
+  //  - major: always update to the overall latest version (default).
+  // +optional
+  optional string updateStrategy = 3;
 }
 
 // MachineImageVersion is an expirable version with list of supported container runtimes and interfaces
@@ -1584,6 +1663,7 @@ message MaintenanceAutoUpdate {
   optional bool kubernetesVersion = 1;
 
   // MachineImageVersion indicates whether the machine image version may be automatically updated (default: true).
+  // +optional
   optional bool machineImageVersion = 2;
 }
 
@@ -1600,6 +1680,15 @@ message MaintenanceTimeWindow {
   // +kubebuilder:validation:Required
   // +kubebuilder:validation:Pattern=`([0-1][0-9]|2[0-3])[0-5][0-9][0-5][0-9]\+[0-1][0-4]00`
   optional string end = 2;
+}
+
+// MemorySwapConfiguration contains kubelet swap configuration
+// For more information, please see KEP: 2400-node-swap
+message MemorySwapConfiguration {
+  // SwapBehavior configures swap memory available to container workloads. May be one of {"LimitedSwap", "UnlimitedSwap"}
+  // defaults to: LimitedSwap
+  // +optional
+  optional string swapBehavior = 1;
 }
 
 // Monitoring contains information about the monitoring configuration for the shoot.
@@ -1621,6 +1710,7 @@ message NamedResourceReference {
 // Networking defines networking parameters for the shoot cluster.
 message Networking {
   // Type identifies the type of the networking plugin. This field is immutable.
+  // +optional
   optional string type = 1;
 
   // ProviderConfig is the configuration passed to network resource.
@@ -1729,6 +1819,17 @@ message OIDCConfig {
   // If provided, all usernames will be prefixed with this value. If not provided, username claims other than 'email' are prefixed by the issuer URL to avoid clashes. To skip any prefixing, provide the value '-'.
   // +optional
   optional string usernamePrefix = 10;
+}
+
+// ObservabilityRotation contains information about the observability credential rotation.
+message ObservabilityRotation {
+  // LastInitiationTime is the most recent time when the observability credential rotation was initiated.
+  // +optional
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastInitiationTime = 1;
+
+  // LastCompletionTime is the most recent time when the observability credential rotation was successfully completed.
+  // +optional
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCompletionTime = 2;
 }
 
 // OpenIDConnectClientAuthentication contains configuration for OIDC clients.
@@ -1883,6 +1984,7 @@ message Provider {
   // Workers is a list of worker groups.
   // +patchMergeKey=name
   // +patchStrategy=merge
+  // +optional
   repeated Worker workers = 4;
 
   // WorkersSettings contains settings for all workers.
@@ -2045,12 +2147,6 @@ message SeedBackup {
 
 // SeedDNS contains DNS-relevant information about this seed cluster.
 message SeedDNS {
-  // IngressDomain is the domain of the Seed cluster pointing to the ingress controller endpoint. It will be used
-  // to construct ingress URLs for system applications running in Shoot clusters. This field is immutable.
-  // Deprecated: This field is deprecated and will be removed in a future version of Gardener. Use spec.ingress.domain instead.
-  // +optional
-  optional string ingressDomain = 1;
-
   // Provider configures a DNSProvider
   // +optional
   optional SeedDNSProvider provider = 2;
@@ -2063,16 +2159,6 @@ message SeedDNSProvider {
 
   // SecretRef is a reference to a Secret object containing cloud provider credentials used for registering external domains.
   optional k8s.io.api.core.v1.SecretReference secretRef = 2;
-
-  // Domains contains information about which domains shall be included/excluded for this provider.
-  // Deprecated: This field is deprecated and will be removed in a future version of Gardener.
-  // +optional
-  optional DNSIncludeExclude domains = 3;
-
-  // Zones contains information about which hosted zones shall be included/excluded for this provider.
-  // Deprecated: This field is deprecated and will be removed in a future version of Gardener.
-  // +optional
-  optional DNSIncludeExclude zones = 4;
 }
 
 // SeedList is a collection of Seeds.
@@ -2144,15 +2230,26 @@ message SeedSelector {
 // SeedSettingDependencyWatchdog controls the dependency-watchdog settings for the seed.
 message SeedSettingDependencyWatchdog {
   // Endpoint controls the endpoint settings for the dependency-watchdog for the seed.
+  // Deprecated: This field is deprecated and will be removed in a future version of Gardener. Use `Weeder` instead.
   // +optional
   optional SeedSettingDependencyWatchdogEndpoint endpoint = 1;
 
   // Probe controls the probe settings for the dependency-watchdog for the seed.
+  // Deprecated: This field is deprecated and will be removed in a future version of Gardener. Use `Prober` instead.
   // +optional
   optional SeedSettingDependencyWatchdogProbe probe = 2;
+
+  // Weeder controls the weeder settings for the dependency-watchdog for the seed.
+  // +optional
+  optional SeedSettingDependencyWatchdogWeeder weeder = 3;
+
+  // Prober controls the prober settings for the dependency-watchdog for the seed.
+  // +optional
+  optional SeedSettingDependencyWatchdogProber prober = 4;
 }
 
 // SeedSettingDependencyWatchdogEndpoint controls the endpoint settings for the dependency-watchdog for the seed.
+// Deprecated: This type is deprecated and will be removed in a future version of Gardener. Use type `SeedSettingDependencyWatchdogWeeder` instead.
 message SeedSettingDependencyWatchdogEndpoint {
   // Enabled controls whether the endpoint controller of the dependency-watchdog should be enabled. This controller
   // helps to alleviate the delay where control plane components remain unavailable by finding the respective pods in
@@ -2161,17 +2258,53 @@ message SeedSettingDependencyWatchdogEndpoint {
 }
 
 // SeedSettingDependencyWatchdogProbe controls the probe settings for the dependency-watchdog for the seed.
+// Deprecated: This type is deprecated and will be removed in a future version of Gardener. Use type `SeedSettingDependencyWatchdogProber` instead.
 message SeedSettingDependencyWatchdogProbe {
   // Enabled controls whether the probe controller of the dependency-watchdog should be enabled. This controller
-  // scales down the kube-controller-manager of shoot clusters in case their respective kube-apiserver is not
+  // scales down the kube-controller-manager, machine-controller-manager and cluster-autoscaler of shoot clusters in case their respective kube-apiserver is not
   // reachable via its external ingress in order to avoid melt-down situations.
+  optional bool enabled = 1;
+}
+
+// SeedSettingDependencyWatchdogProber controls the prober settings for the dependency-watchdog for the seed.
+message SeedSettingDependencyWatchdogProber {
+  // Enabled controls whether the probe controller(prober) of the dependency-watchdog should be enabled. This controller
+  // scales down the kube-controller-manager, machine-controller-manager and cluster-autoscaler of shoot clusters in case their respective kube-apiserver is not
+  // reachable via its external ingress in order to avoid melt-down situations.
+  optional bool enabled = 1;
+}
+
+// SeedSettingDependencyWatchdogWeeder controls the weeder settings for the dependency-watchdog for the seed.
+message SeedSettingDependencyWatchdogWeeder {
+  // Enabled controls whether the endpoint controller(weeder) of the dependency-watchdog should be enabled. This controller
+  // helps to alleviate the delay where control plane components remain unavailable by finding the respective pods in
+  // CrashLoopBackoff status and restarting them once their dependants become ready and available again.
   optional bool enabled = 1;
 }
 
 // SeedSettingExcessCapacityReservation controls the excess capacity reservation for shoot control planes in the seed.
 message SeedSettingExcessCapacityReservation {
-  // Enabled controls whether the excess capacity reservation should be enabled.
+  // Enabled controls whether the default excess capacity reservation should be enabled. When not specified, the functionality is enabled.
+  // +optional
   optional bool enabled = 1;
+
+  // Configs configures excess capacity reservation deployments for shoot control planes in the seed.
+  // +optional
+  repeated SeedSettingExcessCapacityReservationConfig configs = 2;
+}
+
+// SeedSettingExcessCapacityReservationConfig configures excess capacity reservation deployments for shoot control planes in the seed.
+message SeedSettingExcessCapacityReservationConfig {
+  // Resources specify the resource requests and limits of the excess-capacity-reservation pod.
+  map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> resources = 1;
+
+  // NodeSelector specifies the node where the excess-capacity-reservation pod should run.
+  // +optional
+  map<string, string> nodeSelector = 2;
+
+  // Tolerations specify the tolerations for the the excess-capacity-reservation pod.
+  // +optional
+  repeated k8s.io.api.core.v1.Toleration tolerations = 3;
 }
 
 // SeedSettingLoadBalancerServices controls certain settings for services of type load balancer that are created in the
@@ -2210,13 +2343,6 @@ message SeedSettingLoadBalancerServicesZones {
   optional string externalTrafficPolicy = 3;
 }
 
-// SeedSettingOwnerChecks controls certain owner checks settings for shoots scheduled on this seed.
-message SeedSettingOwnerChecks {
-  // Enabled controls whether owner checks are enabled for shoots scheduled on this seed. It
-  // is enabled by default because it is a prerequisite for control plane migration.
-  optional bool enabled = 1;
-}
-
 // SeedSettingScheduling controls settings for scheduling decisions for the seed.
 message SeedSettingScheduling {
   // Visible controls whether the gardener-scheduler shall consider this seed when scheduling shoots. Invisible seeds
@@ -2225,7 +2351,7 @@ message SeedSettingScheduling {
 }
 
 // SeedSettingTopologyAwareRouting controls certain settings for topology-aware traffic routing in the seed.
-// See https://github.com/gardener/gardener/blob/master/docs/usage/topology_aware_routing.md.
+// See https://github.com/gardener/gardener/blob/master/docs/operations/topology_aware_routing.md.
 message SeedSettingTopologyAwareRouting {
   // Enabled controls whether certain Services deployed in the seed cluster should be topology-aware.
   // These Services are etcd-main-client, etcd-events-client, kube-apiserver, gardener-resource-manager and vpa-webhook.
@@ -2259,16 +2385,12 @@ message SeedSettings {
   // +optional
   optional SeedSettingVerticalPodAutoscaler verticalPodAutoscaler = 5;
 
-  // SeedSettingOwnerChecks controls certain owner checks settings for shoots scheduled on this seed.
-  // +optional
-  optional SeedSettingOwnerChecks ownerChecks = 6;
-
   // DependencyWatchdog controls certain settings for the dependency-watchdog components deployed in the seed.
   // +optional
   optional SeedSettingDependencyWatchdog dependencyWatchdog = 7;
 
   // TopologyAwareRouting controls certain settings for topology-aware traffic routing in the seed.
-  // See https://github.com/gardener/gardener/blob/master/docs/usage/topology_aware_routing.md.
+  // See https://github.com/gardener/gardener/blob/master/docs/operations/topology_aware_routing.md.
   // +optional
   optional SeedSettingTopologyAwareRouting topologyAwareRouting = 8;
 }
@@ -2293,6 +2415,9 @@ message SeedSpec {
 
   // SecretRef is a reference to a Secret object containing the Kubeconfig of the Kubernetes
   // cluster to be registered as Seed.
+  //
+  // Deprecated: This field is deprecated, gardenlet must run in the Seed cluster,
+  // hence it should use the in-cluster rest config via ServiceAccount to communicate with the Seed cluster.
   // +optional
   optional k8s.io.api.core.v1.SecretReference secretRef = 5;
 
@@ -2350,6 +2475,10 @@ message SeedStatus {
   // ClientCertificateExpirationTimestamp is the timestamp at which gardenlet's client certificate expires.
   // +optional
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time clientCertificateExpirationTimestamp = 8;
+
+  // LastOperation holds information about the last operation on the Seed.
+  // +optional
+  optional LastOperation lastOperation = 9;
 }
 
 // SeedTaint describes a taint on a seed.
@@ -2420,7 +2549,6 @@ message ServiceAccountConfig {
   // AcceptedIssuers is an additional set of issuers that are used to determine which service account tokens are accepted.
   // These values are not used to generate new service account tokens. Only useful when service account tokens are also
   // issued by another external system or a change of the current issuer that is used for generating tokens is being performed.
-  // This field is only available for Kubernetes v1.22 or later.
   // +optional
   repeated string acceptedIssuers = 5;
 }
@@ -2498,7 +2626,7 @@ message ShootCredentialsRotation {
 
   // Observability contains information about the observability credential rotation.
   // +optional
-  optional ShootObservabilityRotation observability = 4;
+  optional ObservabilityRotation observability = 4;
 
   // ServiceAccountKey contains information about the service account key credential rotation.
   // +optional
@@ -2557,17 +2685,6 @@ message ShootNetworks {
   optional string services = 2;
 }
 
-// ShootObservabilityRotation contains information about the observability credential rotation.
-message ShootObservabilityRotation {
-  // LastInitiationTime is the most recent time when the observability credential rotation was initiated.
-  // +optional
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastInitiationTime = 1;
-
-  // LastCompletionTime is the most recent time when the observability credential rotation was successfully completed.
-  // +optional
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCompletionTime = 2;
-}
-
 // ShootSSHKeypairRotation contains information about the ssh-keypair credential rotation.
 message ShootSSHKeypairRotation {
   // LastInitiationTime is the most recent time when the ssh-keypair credential rotation was initiated.
@@ -2604,6 +2721,7 @@ message ShootSpec {
   optional Kubernetes kubernetes = 6;
 
   // Networking contains information about cluster networking such as CNI Plugin type, CIDRs, ...etc.
+  // +optional
   optional Networking networking = 7;
 
   // Maintenance contains information about the time window for maintenance operations and which
@@ -2628,10 +2746,10 @@ message ShootSpec {
   // SecretBindingName is the name of the a SecretBinding that has a reference to the provider secret.
   // The credentials inside the provider secret will be used to create the shoot in the respective account.
   // This field is immutable.
+  // +optional
   optional string secretBindingName = 13;
 
   // SeedName is the name of the seed cluster that runs the control plane of the Shoot.
-  // This field is immutable when the SeedChange feature gate is disabled.
   // +optional
   optional string seedName = 14;
 
@@ -2661,6 +2779,12 @@ message ShootSpec {
   // ControlPlane contains general settings for the control plane of the shoot.
   // +optional
   optional ControlPlane controlPlane = 20;
+
+  // SchedulerName is the name of the responsible scheduler which schedules the shoot.
+  // If not specified, the default scheduler takes over.
+  // This field is immutable.
+  // +optional
+  optional string schedulerName = 21;
 }
 
 // ShootState contains a snapshot of the Shoot's state required to migrate the Shoot's control plane to a new Seed.
@@ -2911,7 +3035,7 @@ message Worker {
   optional string caBundle = 2;
 
   // CRI contains configurations of CRI support of every machine in the worker pool.
-  // Defaults to a CRI with name `containerd` when the Kubernetes version of the `Shoot` is >= 1.22.
+  // Defaults to a CRI with name `containerd`.
   // +optional
   optional CRI cri = 3;
 
@@ -2929,17 +3053,21 @@ message Worker {
   // Machine contains information about the machine type and image.
   optional Machine machine = 7;
 
-  // Maximum is the maximum number of VMs to create.
+  // Maximum is the maximum number of machines to create.
+  // This value is divided by the number of configured zones for a fair distribution.
   optional int32 maximum = 8;
 
-  // Minimum is the minimum number of VMs to create.
+  // Minimum is the minimum number of machines to create.
+  // This value is divided by the number of configured zones for a fair distribution.
   optional int32 minimum = 9;
 
-  // MaxSurge is maximum number of VMs that are created during an update.
+  // MaxSurge is maximum number of machines that are created during an update.
+  // This value is divided by the number of configured zones for a fair distribution.
   // +optional
   optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxSurge = 10;
 
-  // MaxUnavailable is the maximum number of VMs that can be unavailable during an update.
+  // MaxUnavailable is the maximum number of machines that can be unavailable during an update.
+  // This value is divided by the number of configured zones for a fair distribution.
   // +optional
   optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUnavailable = 11;
 
@@ -2975,6 +3103,10 @@ message Worker {
   // MachineControllerManagerSettings contains configurations for different worker-pools. Eg. MachineDrainTimeout, MachineHealthTimeout.
   // +optional
   optional MachineControllerManagerSettings machineControllerManager = 19;
+
+  // Sysctls is a map of kernel settings to apply on all machines in this worker pool.
+  // +optional
+  map<string, string> sysctls = 20;
 }
 
 // WorkerKubernetes contains configuration for Kubernetes components related to this worker pool.

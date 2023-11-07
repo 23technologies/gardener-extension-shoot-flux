@@ -1,4 +1,4 @@
-// Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,29 +18,53 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/clock"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	kubernetescache "github.com/gardener/gardener/pkg/client/kubernetes/cache"
+	thirdpartyapiutil "github.com/gardener/gardener/third_party/controller-runtime/pkg/apiutil"
 )
 
 const (
-	defaultCacheResyncPeriod = 6 * time.Hour
+	defaultCacheSyncPeriod = 6 * time.Hour
 )
+
+// NewRuntimeCache creates a new cache.Cache with the given config and options. It can be used
+// for creating new controller-runtime clients with caches.
+func NewRuntimeCache(config *rest.Config, options cache.Options) (cache.Cache, error) {
+	if err := setCacheOptionsDefaults(&options); err != nil {
+		return nil, err
+	}
+
+	return cache.New(config, options)
+}
+
+func setCacheOptionsDefaults(options *cache.Options) error {
+	if options.SyncPeriod == nil {
+		options.SyncPeriod = pointer.Duration(defaultCacheSyncPeriod)
+	}
+
+	return nil
+}
 
 func setClientOptionsDefaults(config *rest.Config, options *client.Options) error {
 	if options.Mapper == nil {
 		// default the client's REST mapper to a dynamic REST mapper (automatically rediscovers resources on NoMatchErrors)
-		mapper, err := apiutil.NewDynamicRESTMapper(
+		// TODO(ary1992): The new rest mapper implementation doesn't return a NoKindMatchError but a ErrGroupDiscoveryFailed
+		// when an API GroupVersion is not present in the cluster. Remove the old restmapper usage once the upstream issue
+		// (https://github.com/kubernetes-sigs/controller-runtime/pull/2425) is fixed.
+		mapper, err := thirdpartyapiutil.NewDynamicRESTMapper(
 			config,
-			apiutil.WithLazyDiscovery,
-			apiutil.WithLimiter(rate.NewLimiter(rate.Every(5*time.Second), 1)),
+			thirdpartyapiutil.WithLazyDiscovery,
+			thirdpartyapiutil.WithLimiter(rate.NewLimiter(rate.Every(5*time.Second), 1)),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create new DynamicRESTMapper: %w", err)
@@ -82,20 +106,18 @@ func AggregatorCacheFunc(newCache cache.NewCacheFunc, typeToNewCache map[client.
 	}
 }
 
-// NewRuntimeCache creates a new cache.Cache with the given config and options. It can be used
-// for creating new controller-runtime clients with caches.
-func NewRuntimeCache(config *rest.Config, options cache.Options) (cache.Cache, error) {
-	if err := setCacheOptionsDefaults(&options); err != nil {
-		return nil, err
+// SingleObjectCacheFunc returns a cache.NewCacheFunc for the SingleObject implementation.
+func SingleObjectCacheFunc(log logr.Logger, scheme *runtime.Scheme, obj client.Object) cache.NewCacheFunc {
+	return func(restConfig *rest.Config, options cache.Options) (cache.Cache, error) {
+		gvk, err := apiutil.GVKForObject(obj, scheme)
+		if err != nil {
+			return nil, err
+		}
+
+		logger := log.
+			WithName("single-object-cache").
+			WithValues("groupVersion", gvk.GroupVersion().String(), "kind", gvk.Kind)
+
+		return kubernetescache.NewSingleObject(logger, restConfig, cache.New, options, gvk, clock.RealClock{}, 10*time.Minute, time.Minute), nil
 	}
-
-	return cache.New(config, options)
-}
-
-func setCacheOptionsDefaults(options *cache.Options) error {
-	if options.Resync == nil {
-		options.Resync = pointer.Duration(defaultCacheResyncPeriod)
-	}
-
-	return nil
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package extension
 
 import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
@@ -24,6 +25,6 @@ import (
 
 // ClusterToExtensionMapper returns a mapper that returns requests for Extensions whose
 // referenced clusters have been modified.
-func ClusterToExtensionMapper(predicates ...predicate.Predicate) mapper.Mapper {
-	return mapper.ClusterToObjectMapper(func() client.ObjectList { return &extensionsv1alpha1.ExtensionList{} }, predicates)
+func ClusterToExtensionMapper(mgr manager.Manager, predicates ...predicate.Predicate) mapper.Mapper {
+	return mapper.ClusterToObjectMapper(mgr, func() client.ObjectList { return &extensionsv1alpha1.ExtensionList{} }, predicates)
 }

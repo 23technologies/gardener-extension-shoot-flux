@@ -1,4 +1,4 @@
-// Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,29 +69,7 @@ func NewWithServerVersion(serverVersion *version.Info) Interface {
 	}
 }
 
-// DiscoverCapabilities discovers the capabilities required for chart renderers using the given
-// DiscoveryInterface.
-func DiscoverCapabilities(disc discovery.DiscoveryInterface) (*chartutil.Capabilities, error) {
-	sv, err := disc.ServerVersion()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get kubernetes server version %w", err)
-	}
-
-	return &chartutil.Capabilities{KubeVersion: sv}, nil
-}
-
-// Render loads the chart from the given location <chartPath> and calls the Render() function
-// to convert it into a ChartRelease object.
-// Deprecated: Use RenderEmbeddedFS for new code!
-func (r *chartRenderer) Render(chartPath, releaseName, namespace string, values interface{}) (*RenderedChart, error) {
-	chart, err := chartutil.Load(chartPath)
-	if err != nil {
-		return nil, fmt.Errorf("can't load chart from path %s:, %s", chartPath, err)
-	}
-	return r.renderRelease(chart, releaseName, namespace, values)
-}
-
-// RenderArchive loads the chart from the given location <chartPath> and calls the Render() function
+// RenderArchive loads the chart from the given location <chartPath> and calls the renderRelease() function
 // to convert it into a ChartRelease object.
 func (r *chartRenderer) RenderArchive(archive []byte, releaseName, namespace string, values interface{}) (*RenderedChart, error) {
 	chart, err := chartutil.LoadArchive(bytes.NewReader(archive))
@@ -101,7 +79,7 @@ func (r *chartRenderer) RenderArchive(archive []byte, releaseName, namespace str
 	return r.renderRelease(chart, releaseName, namespace, values)
 }
 
-// RenderEmbeddedFS loads the chart from the given embed.FS and calls the Render() function
+// RenderEmbeddedFS loads the chart from the given embed.FS and calls the renderRelease() function
 // to convert it into a ChartRelease object.
 func (r *chartRenderer) RenderEmbeddedFS(embeddedFS embed.FS, chartPath, releaseName, namespace string, values interface{}) (*RenderedChart, error) {
 	chart, err := loadEmbeddedFS(embeddedFS, chartPath)
@@ -204,8 +182,10 @@ func (c *RenderedChart) FileContent(filename string) string {
 func (c *RenderedChart) AsSecretData() map[string][]byte {
 	data := make(map[string][]byte, len(c.Files()))
 	for fileName, fileContent := range c.Files() {
-		key := strings.ReplaceAll(fileName, "/", "_")
-		data[key] = []byte(fileContent)
+		if len(fileContent) != 0 {
+			key := strings.ReplaceAll(fileName, "/", "_")
+			data[key] = []byte(fileContent)
+		}
 	}
 	return data
 }

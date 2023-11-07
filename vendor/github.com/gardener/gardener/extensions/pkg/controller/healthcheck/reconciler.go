@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ import (
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/inject"
 
 	extensionscontroller "github.com/gardener/gardener/extensions/pkg/controller"
 	"github.com/gardener/gardener/pkg/api/extensions"
@@ -56,21 +56,13 @@ const (
 
 // NewReconciler creates a new performHealthCheck.Reconciler that reconciles
 // the registered extension resources (Gardener's `extensions.gardener.cloud` API group).
-func NewReconciler(actuator HealthCheckActuator, registeredExtension RegisteredExtension, syncPeriod metav1.Duration) reconcile.Reconciler {
+func NewReconciler(mgr manager.Manager, actuator HealthCheckActuator, registeredExtension RegisteredExtension, syncPeriod metav1.Duration) reconcile.Reconciler {
 	return &reconciler{
 		actuator:            actuator,
+		client:              mgr.GetClient(),
 		registeredExtension: registeredExtension,
 		syncPeriod:          syncPeriod,
 	}
-}
-
-func (r *reconciler) InjectFunc(f inject.Func) error {
-	return f(r.actuator)
-}
-
-func (r *reconciler) InjectClient(client client.Client) error {
-	r.client = client
-	return nil
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -110,6 +102,17 @@ func (r *reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	cluster, err := extensionscontroller.GetCluster(ctx, r.client, acc.GetNamespace())
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	// cleanup conditions from extension status
+	if len(r.registeredExtension.conditionTypesToRemove) > 0 {
+		var newConditions []gardencorev1beta1.Condition
+		for _, condition := range extension.GetExtensionStatus().GetConditions() {
+			if !r.registeredExtension.conditionTypesToRemove.Has(condition.Type) {
+				newConditions = append(newConditions, condition)
+			}
+		}
+		extension.GetExtensionStatus().SetConditions(newConditions)
 	}
 
 	if extensionscontroller.IsHibernationEnabled(cluster) {
@@ -173,7 +176,7 @@ func (r *reconciler) performHealthCheck(ctx context.Context, log logr.Logger, re
 
 		if healthCheckResult.Status == gardencorev1beta1.ConditionTrue {
 			logger.Info("Health check for extension resource successful", "kind", r.registeredExtension.groupVersionKind.Kind, "conditionType", healthCheckResult.HealthConditionType)
-			conditions = append(conditions, extensionConditionSuccessful(conditionBuilder, healthCheckResult.HealthConditionType, healthCheckResult))
+			conditions = append(conditions, extensionConditionSuccessful(conditionBuilder, healthCheckResult.HealthConditionType))
 			continue
 		}
 
@@ -247,7 +250,7 @@ func extensionConditionUnsuccessful(conditionBuilder v1beta1helper.ConditionBuil
 	}
 }
 
-func extensionConditionSuccessful(conditionBuilder v1beta1helper.ConditionBuilder, healthConditionType string, healthCheckResult Result) condition {
+func extensionConditionSuccessful(conditionBuilder v1beta1helper.ConditionBuilder, healthConditionType string) condition {
 	conditionBuilder.
 		WithStatus(gardencorev1beta1.ConditionTrue).
 		WithReason(ReasonSuccessful).

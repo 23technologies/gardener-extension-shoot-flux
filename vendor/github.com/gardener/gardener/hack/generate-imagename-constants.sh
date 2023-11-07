@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+# Copyright 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ function camelCase {
   sed -r 's/(.)-+(.)/\1\U\2/g;s/^[a-z]/\U&/' <<< "$1"
 }
 
-package_name="${1:-charts}"
+package_name="${1:-imagevector}"
 images_yaml="${2:-images.yaml}"
 
 out="

@@ -1,4 +1,4 @@
-// Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/yaml"
 
 	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
@@ -349,7 +349,7 @@ func (v ImageVector) FindImage(name string, opts ...FindOptionFunc) (*Image, err
 // In case multiple images match the search, the first which was found is returned.
 // In case no image was found, an error is returned.
 func FindImages(v ImageVector, names []string, opts ...FindOptionFunc) (map[string]*Image, error) {
-	images := map[string]*Image{}
+	images := make(map[string]*Image, len(names))
 	for _, imageName := range names {
 		image, err := v.FindImage(imageName, opts...)
 		if err != nil {
@@ -376,7 +376,15 @@ func (i *ImageSource) ToImage(targetVersion *string) *Image {
 	}
 }
 
-// String will returns the string representation of the image.
+// WithOptionalTag will set the 'Tag' field of the 'Image' to <tag> in case it is nil. If 'Tag' is already set, nothing
+// happens.
+func (i *Image) WithOptionalTag(tag string) {
+	if i.Tag == nil {
+		i.Tag = &tag
+	}
+}
+
+// String returns the string representation of the image.
 func (i *Image) String() string {
 	if i.Tag == nil {
 		return i.Repository

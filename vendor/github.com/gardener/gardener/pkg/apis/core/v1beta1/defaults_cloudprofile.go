@@ -1,4 +1,4 @@
-// Copyright (c) 2023 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2023 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,14 @@ import (
 
 	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 )
+
+// SetDefaults_MachineImage sets default values for MachineImage objects.
+func SetDefaults_MachineImage(obj *MachineImage) {
+	if obj.UpdateStrategy == nil {
+		updateStrategyMajor := UpdateStrategyMajor
+		obj.UpdateStrategy = &updateStrategyMajor
+	}
+}
 
 // SetDefaults_MachineImageVersion sets default values for MachineImageVersion objects.
 func SetDefaults_MachineImageVersion(obj *MachineImageVersion) {

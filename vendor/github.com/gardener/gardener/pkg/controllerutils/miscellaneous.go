@@ -1,4 +1,4 @@
-// Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,17 +15,17 @@
 package controllerutils
 
 import (
+	"context"
 	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/clock"
-
 	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
-	v1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper"
 	"github.com/gardener/gardener/pkg/utils"
 )
+
+// DefaultReconciliationTimeout is the default timeout for the context of reconciliation functions.
+const DefaultReconciliationTimeout = 3 * time.Minute
 
 const separator = ","
 
@@ -87,40 +87,35 @@ func setTaskAnnotations(annotations map[string]string, tasks []string) {
 	annotations[v1beta1constants.ShootTasks] = strings.Join(tasks, separator)
 }
 
-var (
-	// RandomDuration is a function for returning a random duration.
-	RandomDuration = utils.RandomDuration
-)
-
-// ReconcileOncePer24hDuration returns the duration until the next reconciliation should happen while respecting that
-// only one reconciliation should happen per 24h. If the deletion timestamp is set or the generation has changed or the
-// last operation does not indicate success or indicates that the last reconciliation happened more than 24h ago then 0
-// will be returned.
-func ReconcileOncePer24hDuration(clock clock.Clock, objectMeta metav1.ObjectMeta, observedGeneration int64, lastOperation *gardencorev1beta1.LastOperation) time.Duration {
-	if objectMeta.DeletionTimestamp != nil {
-		return 0
+// GetMainReconciliationContext returns a context with timeout for the controller's main client. The resulting context has a timeout equal to the timeout passed in the argument but
+// not more than DefaultReconciliationTimeout.
+func GetMainReconciliationContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	t := timeout
+	if timeout > DefaultReconciliationTimeout {
+		t = DefaultReconciliationTimeout
 	}
 
-	if objectMeta.Generation != observedGeneration {
-		return 0
+	return context.WithTimeout(ctx, t)
+}
+
+// GetChildReconciliationContext returns context with timeout for the controller's secondary client. The resulting context has a timeout equal to half of the timeout
+// for the controller's main client.
+func GetChildReconciliationContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	t := timeout
+	if timeout > DefaultReconciliationTimeout {
+		t = DefaultReconciliationTimeout
 	}
 
-	if v1beta1helper.HasOperationAnnotation(objectMeta.Annotations) {
-		return 0
+	return context.WithTimeout(ctx, t/2)
+}
+
+// GetControllerInstallationNames returns a list of the names of the controllerinstallations passed.
+func GetControllerInstallationNames(controllerInstallations []gardencorev1beta1.ControllerInstallation) []string {
+	var names = make([]string, 0, len(controllerInstallations))
+
+	for _, controllerInstallation := range controllerInstallations {
+		names = append(names, controllerInstallation.Name)
 	}
 
-	if lastOperation == nil ||
-		lastOperation.State != gardencorev1beta1.LastOperationStateSucceeded ||
-		(lastOperation.Type != gardencorev1beta1.LastOperationTypeCreate && lastOperation.Type != gardencorev1beta1.LastOperationTypeReconcile) {
-		return 0
-	}
-
-	// If last reconciliation happened more than 24h ago then we want to reconcile immediately, so let's only compute
-	// a delay if the last reconciliation was within the last 24h.
-	if lastReconciliation := lastOperation.LastUpdateTime.Time; clock.Now().UTC().Before(lastReconciliation.UTC().Add(24 * time.Hour)) {
-		durationUntilLastReconciliationWas24hAgo := lastReconciliation.UTC().Add(24 * time.Hour).Sub(clock.Now().UTC())
-		return RandomDuration(durationUntilLastReconciliationWas24hAgo)
-	}
-
-	return 0
+	return names
 }

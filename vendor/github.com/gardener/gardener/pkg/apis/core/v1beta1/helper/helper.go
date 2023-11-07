@@ -1,4 +1,4 @@
-// Copyright (c) 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2018 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,141 +16,23 @@ package helper
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/clock"
 	"k8s.io/utils/pointer"
 
 	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 	versionutils "github.com/gardener/gardener/pkg/utils/version"
 )
-
-// InitConditionWithClock initializes a new Condition with an Unknown status. It allows passing a custom clock for testing.
-func InitConditionWithClock(clock clock.Clock, conditionType gardencorev1beta1.ConditionType) gardencorev1beta1.Condition {
-	now := metav1.Time{Time: clock.Now()}
-	return gardencorev1beta1.Condition{
-		Type:               conditionType,
-		Status:             gardencorev1beta1.ConditionUnknown,
-		Reason:             "ConditionInitialized",
-		Message:            "The condition has been initialized but its semantic check has not been performed yet.",
-		LastTransitionTime: now,
-		LastUpdateTime:     now,
-	}
-}
-
-// GetCondition returns the condition with the given <conditionType> out of the list of <conditions>.
-// In case the required type could not be found, it returns nil.
-func GetCondition(conditions []gardencorev1beta1.Condition, conditionType gardencorev1beta1.ConditionType) *gardencorev1beta1.Condition {
-	for _, condition := range conditions {
-		if condition.Type == conditionType {
-			c := condition
-			return &c
-		}
-	}
-	return nil
-}
-
-// GetOrInitConditionWithClock tries to retrieve the condition with the given condition type from the given conditions.
-// If the condition could not be found, it returns an initialized condition of the given type. It allows passing a custom clock for testing.
-func GetOrInitConditionWithClock(clock clock.Clock, conditions []gardencorev1beta1.Condition, conditionType gardencorev1beta1.ConditionType) gardencorev1beta1.Condition {
-	if condition := GetCondition(conditions, conditionType); condition != nil {
-		return *condition
-	}
-	return InitConditionWithClock(clock, conditionType)
-}
-
-// UpdatedConditionWithClock updates the properties of one specific condition. It allows passing a custom clock for testing.
-func UpdatedConditionWithClock(clock clock.Clock, condition gardencorev1beta1.Condition, status gardencorev1beta1.ConditionStatus, reason, message string, codes ...gardencorev1beta1.ErrorCode) gardencorev1beta1.Condition {
-	builder, err := NewConditionBuilder(condition.Type)
-	utilruntime.Must(err)
-	newCondition, _ := builder.
-		WithOldCondition(condition).
-		WithClock(clock).
-		WithStatus(status).
-		WithReason(reason).
-		WithMessage(message).
-		WithCodes(codes...).
-		Build()
-
-	return newCondition
-}
-
-// UpdatedConditionUnknownErrorWithClock updates the condition to 'Unknown' status and the message of the given error. It allows passing a custom clock for testing.
-func UpdatedConditionUnknownErrorWithClock(clock clock.Clock, condition gardencorev1beta1.Condition, err error, codes ...gardencorev1beta1.ErrorCode) gardencorev1beta1.Condition {
-	return UpdatedConditionUnknownErrorMessageWithClock(clock, condition, err.Error(), codes...)
-}
-
-// UpdatedConditionUnknownErrorMessageWithClock updates the condition with 'Unknown' status and the given message. It allows passing a custom clock for testing.
-func UpdatedConditionUnknownErrorMessageWithClock(clock clock.Clock, condition gardencorev1beta1.Condition, message string, codes ...gardencorev1beta1.ErrorCode) gardencorev1beta1.Condition {
-	return UpdatedConditionWithClock(clock, condition, gardencorev1beta1.ConditionUnknown, gardencorev1beta1.ConditionCheckError, message, codes...)
-}
-
-// MergeConditions merges the given <oldConditions> with the <newConditions>. Existing conditions are superseded by
-// the <newConditions> (depending on the condition type).
-func MergeConditions(oldConditions []gardencorev1beta1.Condition, newConditions ...gardencorev1beta1.Condition) []gardencorev1beta1.Condition {
-	var (
-		out         = make([]gardencorev1beta1.Condition, 0, len(oldConditions))
-		typeToIndex = make(map[gardencorev1beta1.ConditionType]int, len(oldConditions))
-	)
-
-	for i, condition := range oldConditions {
-		out = append(out, condition)
-		typeToIndex[condition.Type] = i
-	}
-
-	for _, condition := range newConditions {
-		if index, ok := typeToIndex[condition.Type]; ok {
-			out[index] = condition
-			continue
-		}
-		out = append(out, condition)
-	}
-
-	return out
-}
-
-// RemoveConditions removes the conditions with the given types from the given conditions slice.
-func RemoveConditions(conditions []gardencorev1beta1.Condition, conditionTypes ...gardencorev1beta1.ConditionType) []gardencorev1beta1.Condition {
-	conditionTypesMap := make(map[gardencorev1beta1.ConditionType]struct{}, len(conditionTypes))
-	for _, conditionType := range conditionTypes {
-		conditionTypesMap[conditionType] = struct{}{}
-	}
-
-	var newConditions []gardencorev1beta1.Condition
-	for _, condition := range conditions {
-		if _, ok := conditionTypesMap[condition.Type]; !ok {
-			newConditions = append(newConditions, condition)
-		}
-	}
-
-	return newConditions
-}
-
-// ConditionsNeedUpdate returns true if the <existingConditions> must be updated based on <newConditions>.
-func ConditionsNeedUpdate(existingConditions, newConditions []gardencorev1beta1.Condition) bool {
-	return existingConditions == nil || !apiequality.Semantic.DeepEqual(newConditions, existingConditions)
-}
-
-// IsResourceSupported returns true if a given combination of kind/type is part of a controller resources list.
-func IsResourceSupported(resources []gardencorev1beta1.ControllerResource, resourceKind, resourceType string) bool {
-	for _, resource := range resources {
-		if resource.Kind == resourceKind && strings.EqualFold(resource.Type, resourceType) {
-			return true
-		}
-	}
-
-	return false
-}
 
 // IsControllerInstallationSuccessful returns true if a ControllerInstallation has been marked as "successfully"
 // installed.
@@ -475,6 +357,21 @@ func ShootUsesUnmanagedDNS(shoot *gardencorev1beta1.Shoot) bool {
 	return shoot.Spec.DNS != nil && len(shoot.Spec.DNS.Providers) > 0 && shoot.Spec.DNS.Providers[0].Type != nil && *shoot.Spec.DNS.Providers[0].Type == "unmanaged"
 }
 
+// ShootNeedsForceDeletion determines whether a Shoot should be force deleted or not.
+func ShootNeedsForceDeletion(shoot *gardencorev1beta1.Shoot) bool {
+	if shoot == nil {
+		return false
+	}
+
+	value, ok := shoot.Annotations[v1beta1constants.AnnotationConfirmationForceDeletion]
+	if !ok {
+		return false
+	}
+
+	forceDelete, _ := strconv.ParseBool(value)
+	return forceDelete
+}
+
 // ShootSchedulingProfile returns the scheduling profile of the given Shoot.
 func ShootSchedulingProfile(shoot *gardencorev1beta1.Shoot) *gardencorev1beta1.SchedulingProfile {
 	if shoot.Spec.Kubernetes.KubeScheduler != nil {
@@ -488,34 +385,29 @@ func ShootConfinesSpecUpdateRollout(maintenance *gardencorev1beta1.Maintenance) 
 	return maintenance != nil && maintenance.ConfineSpecUpdateRollout != nil && *maintenance.ConfineSpecUpdateRollout
 }
 
+// SeedSettingExcessCapacityReservationEnabled returns true if the 'excess capacity reservation' setting is enabled.
+func SeedSettingExcessCapacityReservationEnabled(settings *gardencorev1beta1.SeedSettings) bool {
+	return settings == nil || settings.ExcessCapacityReservation == nil || pointer.BoolDeref(settings.ExcessCapacityReservation.Enabled, true)
+}
+
 // SeedSettingVerticalPodAutoscalerEnabled returns true if the 'verticalPodAutoscaler' setting is enabled.
 func SeedSettingVerticalPodAutoscalerEnabled(settings *gardencorev1beta1.SeedSettings) bool {
 	return settings == nil || settings.VerticalPodAutoscaler == nil || settings.VerticalPodAutoscaler.Enabled
 }
 
-// SeedSettingOwnerChecksEnabled returns true if the 'ownerChecks' setting is enabled.
-func SeedSettingOwnerChecksEnabled(settings *gardencorev1beta1.SeedSettings) bool {
-	return settings == nil || settings.OwnerChecks == nil || settings.OwnerChecks.Enabled
+// SeedSettingDependencyWatchdogWeederEnabled returns true if the dependency-watchdog-weeder is enabled.
+func SeedSettingDependencyWatchdogWeederEnabled(settings *gardencorev1beta1.SeedSettings) bool {
+	return settings == nil || settings.DependencyWatchdog == nil || settings.DependencyWatchdog.Weeder == nil || settings.DependencyWatchdog.Weeder.Enabled
 }
 
-// SeedSettingDependencyWatchdogEndpointEnabled returns true if the depedency-watchdog-endpoint is enabled.
-func SeedSettingDependencyWatchdogEndpointEnabled(settings *gardencorev1beta1.SeedSettings) bool {
-	return settings == nil || settings.DependencyWatchdog == nil || settings.DependencyWatchdog.Endpoint == nil || settings.DependencyWatchdog.Endpoint.Enabled
-}
-
-// SeedSettingDependencyWatchdogProbeEnabled returns true if the depedency-watchdog-probe is enabled.
-func SeedSettingDependencyWatchdogProbeEnabled(settings *gardencorev1beta1.SeedSettings) bool {
-	return settings == nil || settings.DependencyWatchdog == nil || settings.DependencyWatchdog.Probe == nil || settings.DependencyWatchdog.Probe.Enabled
+// SeedSettingDependencyWatchdogProberEnabled returns true if the dependency-watchdog-prober is enabled.
+func SeedSettingDependencyWatchdogProberEnabled(settings *gardencorev1beta1.SeedSettings) bool {
+	return settings == nil || settings.DependencyWatchdog == nil || settings.DependencyWatchdog.Prober == nil || settings.DependencyWatchdog.Prober.Enabled
 }
 
 // SeedSettingTopologyAwareRoutingEnabled returns true if the topology-aware routing is enabled.
 func SeedSettingTopologyAwareRoutingEnabled(settings *gardencorev1beta1.SeedSettings) bool {
 	return settings != nil && settings.TopologyAwareRouting != nil && settings.TopologyAwareRouting.Enabled
-}
-
-// SeedUsesNginxIngressController returns true if the seed's specification requires an nginx ingress controller to be deployed.
-func SeedUsesNginxIngressController(seed *gardencorev1beta1.Seed) bool {
-	return seed.Spec.DNS.Provider != nil && seed.Spec.Ingress != nil && seed.Spec.Ingress.Controller.Kind == v1beta1constants.IngressKindNginx
 }
 
 // DetermineMachineImageForName finds the cloud specific machine images in the <cloudProfile> for the given <name> and
@@ -532,18 +424,18 @@ func DetermineMachineImageForName(cloudProfile *gardencorev1beta1.CloudProfile, 
 
 // FindMachineImageVersion finds the machine image version in the <cloudProfile> for the given <name> and <version>.
 // In case no machine image version can be found with the given <name> or <version>, false is being returned.
-func FindMachineImageVersion(cloudProfile *gardencorev1beta1.CloudProfile, name, version string) (bool, gardencorev1beta1.MachineImageVersion) {
-	for _, image := range cloudProfile.Spec.MachineImages {
+func FindMachineImageVersion(machineImages []gardencorev1beta1.MachineImage, name, version string) (gardencorev1beta1.MachineImageVersion, bool) {
+	for _, image := range machineImages {
 		if image.Name == name {
 			for _, imageVersion := range image.Versions {
 				if imageVersion.Version == version {
-					return true, imageVersion
+					return imageVersion, true
 				}
 			}
 		}
 	}
 
-	return false, gardencorev1beta1.MachineImageVersion{}
+	return gardencorev1beta1.MachineImageVersion{}, false
 }
 
 // ShootMachineImageVersionExists checks if the shoot machine image (name, version) exists in the machine image constraint and returns true if yes and the index in the versions slice
@@ -561,38 +453,13 @@ func ShootMachineImageVersionExists(constraint gardencorev1beta1.MachineImage, i
 	return false, 0
 }
 
-func toExpirableVersions(versions []gardencorev1beta1.MachineImageVersion) []gardencorev1beta1.ExpirableVersion {
+// ToExpirableVersions returns the expirable versions from the given machine image versions.
+func ToExpirableVersions(versions []gardencorev1beta1.MachineImageVersion) []gardencorev1beta1.ExpirableVersion {
 	expVersions := []gardencorev1beta1.ExpirableVersion{}
 	for _, version := range versions {
 		expVersions = append(expVersions, version.ExpirableVersion)
 	}
 	return expVersions
-}
-
-// GetLatestQualifyingShootMachineImage determines the latest qualifying version in a machine image and returns that as a ShootMachineImage.
-// A version qualifies if its classification is not preview and the version is not expired.
-// Older but non-deprecated version is preferred over newer but deprecated one.
-func GetLatestQualifyingShootMachineImage(image gardencorev1beta1.MachineImage, predicates ...VersionPredicate) (bool, *gardencorev1beta1.ShootMachineImage, error) {
-	predicates = append(predicates, FilterExpiredVersion())
-
-	// Try to find non-deprecated version first
-	qualifyingVersionFound, latestNonDeprecatedImageVersion, err := GetLatestQualifyingVersion(toExpirableVersions(image.Versions), append(predicates, FilterDeprecatedVersion())...)
-	if err != nil {
-		return false, nil, err
-	}
-	if qualifyingVersionFound {
-		return true, &gardencorev1beta1.ShootMachineImage{Name: image.Name, Version: &latestNonDeprecatedImageVersion.Version}, nil
-	}
-
-	// It looks like there is no non-deprecated version, now look also into the deprecated versions
-	qualifyingVersionFound, latestImageVersion, err := GetLatestQualifyingVersion(toExpirableVersions(image.Versions), predicates...)
-	if err != nil {
-		return false, nil, err
-	}
-	if !qualifyingVersionFound {
-		return false, nil, nil
-	}
-	return true, &gardencorev1beta1.ShootMachineImage{Name: image.Name, Version: &latestImageVersion.Version}, nil
 }
 
 // FindMachineTypeByName tries to find the machine type details with the given name. If it cannot be found it returns nil.
@@ -651,24 +518,8 @@ func WrapWithLastError(err error, lastError *gardencorev1beta1.LastError) error 
 	return fmt.Errorf("last error: %w: %s", err, lastError.Description)
 }
 
-// IsAPIServerExposureManaged returns true, if the Object is managed by Gardener for API server exposure.
-// This indicates to extensions that they should not mutate the object.
-// Gardener marks the kube-apiserver Service and Deployment as managed by it when it uses SNI to expose them.
-func IsAPIServerExposureManaged(obj metav1.Object) bool {
-	if obj == nil {
-		return false
-	}
-
-	if v, found := obj.GetLabels()[v1beta1constants.LabelAPIServerExposure]; found &&
-		v == v1beta1constants.LabelAPIServerExposureGardenerManaged {
-		return true
-	}
-
-	return false
-}
-
 // FindPrimaryDNSProvider finds the primary provider among the given `providers`.
-// It returns the first provider in case no primary provider is available or the first one if multiple candidates are found.
+// It returns the first provider if multiple candidates are found.
 func FindPrimaryDNSProvider(providers []gardencorev1beta1.DNSProvider) *gardencorev1beta1.DNSProvider {
 	for _, provider := range providers {
 		if provider.Primary != nil && *provider.Primary {
@@ -682,20 +533,89 @@ func FindPrimaryDNSProvider(providers []gardencorev1beta1.DNSProvider) *gardenco
 // VersionPredicate is a function that evaluates a condition on the given versions.
 type VersionPredicate func(expirableVersion gardencorev1beta1.ExpirableVersion, version *semver.Version) (bool, error)
 
-// GetKubernetesVersionForPatchUpdate finds the latest Kubernetes patch version for its minor version in the <cloudProfile> compared
-// to the given <currentVersion>. Preview and expired versions do not qualify for the kubernetes patch update. In case it does not find a newer patch version, it returns false. Otherwise,
-// true and the found version will be returned.
-func GetKubernetesVersionForPatchUpdate(cloudProfile *gardencorev1beta1.CloudProfile, currentVersion string) (bool, string, error) {
+// GetLatestVersionForPatchAutoUpdate finds the latest patch version for a given <currentVersion> for the current minor version from a given slice of versions.
+// The current version, preview and expired versions do not qualify.
+// In case no newer patch version is found, returns false and an empty string. Otherwise, returns true and the found version.
+func GetLatestVersionForPatchAutoUpdate(versions []gardencorev1beta1.ExpirableVersion, currentVersion string) (bool, string, error) {
 	currentSemVerVersion, err := semver.NewVersion(currentVersion)
 	if err != nil {
 		return false, "", err
 	}
 
-	qualifyingVersionFound, latestVersion, err := GetLatestQualifyingVersion(cloudProfile.Spec.Kubernetes.Versions, FilterDifferentMajorMinorVersion(*currentSemVerVersion), FilterSameVersion(*currentSemVerVersion), FilterExpiredVersion())
+	predicates := []VersionPredicate{FilterDifferentMajorMinorVersionAndLowerPatchVersionsOfSameMinor(*currentSemVerVersion)}
+
+	return getVersionForAutoUpdate(versions, currentSemVerVersion, predicates)
+}
+
+// GetLatestVersionForMinorAutoUpdate finds the latest minor with the latest patch version higher than a given <currentVersion> for the current major version from a given slice of versions.
+// Returns the highest patch version for the current minor in case the current version is not the highest patch version yet.
+// The current version, preview and expired versions do not qualify.
+// In case no newer version is found, returns false and an empty string. Otherwise, returns true and the found version.
+func GetLatestVersionForMinorAutoUpdate(versions []gardencorev1beta1.ExpirableVersion, currentVersion string) (bool, string, error) {
+	// always first check if there is a higher patch version available
+	found, version, err := GetLatestVersionForPatchAutoUpdate(versions, currentVersion)
+	if found {
+		return found, version, nil
+	}
+	if err != nil {
+		return false, version, err
+	}
+
+	currentSemVerVersion, err := semver.NewVersion(currentVersion)
 	if err != nil {
 		return false, "", err
 	}
-	// latest version cannot be found. Do not return an error, but allow for minor upgrade if Shoot's machine image version is expired.
+
+	predicates := []VersionPredicate{FilterDifferentMajorVersion(*currentSemVerVersion)}
+
+	return getVersionForAutoUpdate(versions, currentSemVerVersion, predicates)
+}
+
+// GetOverallLatestVersionForAutoUpdate finds the overall latest version higher than a given <currentVersion> for the current major version from a given slice of versions.
+// Returns the highest patch version for the current minor in case the current version is not the highest patch version yet.
+// The current, preview and expired versions do not qualify.
+// In case no newer version is found, returns false and an empty string. Otherwise, returns true and the found version.
+func GetOverallLatestVersionForAutoUpdate(versions []gardencorev1beta1.ExpirableVersion, currentVersion string) (bool, string, error) {
+	// always first check if there is a higher patch version available to update to
+	found, version, err := GetLatestVersionForPatchAutoUpdate(versions, currentVersion)
+	if found {
+		return found, version, nil
+	}
+	if err != nil {
+		return false, version, err
+	}
+
+	currentSemVerVersion, err := semver.NewVersion(currentVersion)
+	if err != nil {
+		return false, "", err
+	}
+
+	// if there is no higher patch version available, get the overall latest
+	return getVersionForAutoUpdate(versions, currentSemVerVersion, []VersionPredicate{})
+}
+
+// getVersionForAutoUpdate finds the latest eligible version higher than a given <currentVersion> from a slice of versions.
+// Versions <= the current version, preview and expired versions do not qualify for patch updates.
+// First tries to find a non-deprecated version.
+// In case no newer patch version is found, returns false and an empty string. Otherwise, returns true and the found version.
+func getVersionForAutoUpdate(versions []gardencorev1beta1.ExpirableVersion, currentSemVerVersion *semver.Version, predicates []VersionPredicate) (bool, string, error) {
+	versionPredicates := append([]VersionPredicate{FilterExpiredVersion(), FilterSameVersion(*currentSemVerVersion), FilterLowerVersion(*currentSemVerVersion)}, predicates...)
+
+	// Try to find non-deprecated version first
+	qualifyingVersionFound, latestNonDeprecatedImageVersion, err := GetLatestQualifyingVersion(versions, append(versionPredicates, FilterDeprecatedVersion())...)
+	if err != nil {
+		return false, "", err
+	}
+	if qualifyingVersionFound {
+		return true, latestNonDeprecatedImageVersion.Version, nil
+	}
+
+	// otherwise, also consider deprecated versions
+	qualifyingVersionFound, latestVersion, err := GetLatestQualifyingVersion(versions, versionPredicates...)
+	if err != nil {
+		return false, "", err
+	}
+	// latest version cannot be found. Do not return an error, but allow for forceful upgrade if Shoot's version is expired.
 	if !qualifyingVersionFound {
 		return false, "", nil
 	}
@@ -703,24 +623,28 @@ func GetKubernetesVersionForPatchUpdate(cloudProfile *gardencorev1beta1.CloudPro
 	return true, latestVersion.Version, nil
 }
 
-// GetKubernetesVersionForMinorUpdate finds a Kubernetes version in the <cloudProfile> that qualifies for a Kubernetes minor level update given a <currentVersion>.
-// A qualifying version is a non-preview version having the minor version increased by exactly one version.
-// In case the consecutive minor version has only expired versions, picks the latest expired version (will do another minor update during the next maintenance time)
+// GetVersionForForcefulUpdateToConsecutiveMinor finds a version from a slice of expirable versions that qualifies for a minor level update given a <currentVersion>.
+// A qualifying version is a non-preview version having the minor version increased by exactly one version (required for Kubernetes version upgrades).
+// In case the consecutive minor version has only expired versions, picks the latest expired version (will try another update during the next maintenance time).
 // If a version can be found, returns true and the qualifying patch version of the next minor version.
-// In case it does not find a version, it returns false.
-func GetKubernetesVersionForMinorUpdate(cloudProfile *gardencorev1beta1.CloudProfile, currentVersion string) (bool, string, error) {
+// In case it does not find a version, it returns false and an empty string.
+func GetVersionForForcefulUpdateToConsecutiveMinor(versions []gardencorev1beta1.ExpirableVersion, currentVersion string) (bool, string, error) {
 	currentSemVerVersion, err := semver.NewVersion(currentVersion)
 	if err != nil {
 		return false, "", err
 	}
 
-	qualifyingVersionFound, latestVersion, err := GetLatestQualifyingVersion(cloudProfile.Spec.Kubernetes.Versions, FilterNonConsecutiveMinorVersion(*currentSemVerVersion), FilterSameVersion(*currentSemVerVersion), FilterExpiredVersion())
+	// filters out any version that does not have minor version +1
+	predicates := []VersionPredicate{FilterDifferentMajorVersion(*currentSemVerVersion), FilterNonConsecutiveMinorVersion(*currentSemVerVersion)}
+
+	qualifyingVersionFound, latestVersion, err := GetLatestQualifyingVersion(versions, append(predicates, FilterExpiredVersion())...)
 	if err != nil {
 		return false, "", err
 	}
+
+	// if no qualifying version is found, allow force update to an expired version
 	if !qualifyingVersionFound {
-		// in case there are only expired versions in the consecutive minor version, pick the latest expired version
-		qualifyingVersionFound, latestVersion, err = GetLatestQualifyingVersion(cloudProfile.Spec.Kubernetes.Versions, FilterNonConsecutiveMinorVersion(*currentSemVerVersion), FilterSameVersion(*currentSemVerVersion))
+		qualifyingVersionFound, latestVersion, err = GetLatestQualifyingVersion(versions, predicates...)
 		if err != nil {
 			return false, "", err
 		}
@@ -732,7 +656,78 @@ func GetKubernetesVersionForMinorUpdate(cloudProfile *gardencorev1beta1.CloudPro
 	return true, latestVersion.Version, nil
 }
 
-// GetLatestQualifyingVersion returns the latest expirable version from a set of expirable versions
+// GetVersionForForcefulUpdateToNextHigherMinor finds a version from a slice of expirable versions that qualifies for a minor level update given a <currentVersion>.
+// A qualifying version is the highest non-preview version with the next higher minor version from the given slice of versions.
+// In case the consecutive minor version has only expired versions, picks the latest expired version (will try another update during the next maintenance time).
+// If a version can be found, returns true and the qualifying version.
+// In case it does not find a version, it returns false and an empty string.
+func GetVersionForForcefulUpdateToNextHigherMinor(versions []gardencorev1beta1.ExpirableVersion, currentVersion string) (bool, string, error) {
+	currentSemVerVersion, err := semver.NewVersion(currentVersion)
+	if err != nil {
+		return false, "", err
+	}
+
+	predicates := []VersionPredicate{FilterDifferentMajorVersion(*currentSemVerVersion), FilterEqualAndSmallerMinorVersion(*currentSemVerVersion)}
+
+	// prefer non-expired version
+	return getVersionForMachineImageForceUpdate(versions, func(v semver.Version) int64 { return int64(v.Minor()) }, currentSemVerVersion, predicates)
+}
+
+// GetVersionForForcefulUpdateToNextHigherMajor finds a version from a slice of expirable versions that qualifies for a major level update given a <currentVersion>.
+// A qualifying version is a non-preview version with the next (as defined in the CloudProfile for the image) higher major version.
+// In case the next major version has only expired versions, picks the latest expired version (will try another update during the next maintenance time).
+// If a version can be found, returns true and the qualifying version of the next major version.
+// In case it does not find a version, it returns false and an empty string.
+func GetVersionForForcefulUpdateToNextHigherMajor(versions []gardencorev1beta1.ExpirableVersion, currentVersion string) (bool, string, error) {
+	currentSemVerVersion, err := semver.NewVersion(currentVersion)
+	if err != nil {
+		return false, "", err
+	}
+
+	predicates := []VersionPredicate{FilterEqualAndSmallerMajorVersion(*currentSemVerVersion)}
+
+	// prefer non-expired version
+	return getVersionForMachineImageForceUpdate(versions, func(v semver.Version) int64 { return int64(v.Major()) }, currentSemVerVersion, predicates)
+}
+
+// getVersionForMachineImageForceUpdate finds a version from a slice of expirable versions that qualifies for an update given a <currentVersion>.
+// In contrast to determining a version for an auto-update, also allows update to an expired version in case a not-expired version cannot be determined.
+// Used only for machine image updates, as finds a qualifying version from the next higher minor version, which is not necessarily consecutive (n+1).
+func getVersionForMachineImageForceUpdate(versions []gardencorev1beta1.ExpirableVersion, getMajorOrMinor GetMajorOrMinor, currentSemVerVersion *semver.Version, predicates []VersionPredicate) (bool, string, error) {
+	foundVersion, qualifyingVersion, nextMinorOrMajorVersion, err := GetQualifyingVersionForNextHigher(versions, getMajorOrMinor, currentSemVerVersion, append(predicates, FilterExpiredVersion())...)
+	if err != nil {
+		return false, "", err
+	}
+
+	skippedNextMajorMinor := false
+	if foundVersion {
+		parse, err := semver.NewVersion(qualifyingVersion.Version)
+		if err != nil {
+			return false, "", err
+		}
+		skippedNextMajorMinor = getMajorOrMinor(*parse) > nextMinorOrMajorVersion
+	}
+
+	// Two options when allowing updates to expired versions
+	// 1) No higher non-expired qualifying version could be found at all
+	// 2) Found a qualifying non-expired version, but we skipped the next minor/major.
+	//    Potentially skipped expired versions in the next minor/major that qualify.
+	//    Prefer update to expired version in next minor/major instead of skipping over minor/major altogether.
+	//    Example: current version: 1.1.0, qualifying version : 1.4.1, next minor: 2. We skipped over the next minor which might have qualifying expired versions.
+	if !foundVersion || skippedNextMajorMinor {
+		foundVersion, qualifyingVersion, _, err = GetQualifyingVersionForNextHigher(versions, getMajorOrMinor, currentSemVerVersion, predicates...)
+		if err != nil {
+			return false, "", err
+		}
+		if !foundVersion {
+			return false, "", nil
+		}
+	}
+
+	return true, qualifyingVersion.Version, nil
+}
+
+// GetLatestQualifyingVersion returns the latest expirable version from a set of expirable versions.
 // A version qualifies if its classification is not preview and the optional predicate does not filter out the version.
 // If the predicate returns true, the version is not considered for the latest qualifying version.
 func GetLatestQualifyingVersion(versions []gardencorev1beta1.ExpirableVersion, predicate ...VersionPredicate) (qualifyingVersionFound bool, latest *gardencorev1beta1.ExpirableVersion, err error) {
@@ -777,9 +772,82 @@ OUTER:
 	return true, latestVersion, nil
 }
 
-// FilterDifferentMajorMinorVersion returns a VersionPredicate(closure) that evaluates whether a given version v has a different same major.minor version compared to the currentSemVerVersion
-// returns true if v has a different major.minor version
-func FilterDifferentMajorMinorVersion(currentSemVerVersion semver.Version) VersionPredicate {
+// GetMajorOrMinor returns either the major or the minor version from a semVer version.
+type GetMajorOrMinor func(v semver.Version) int64
+
+// GetQualifyingVersionForNextHigher returns the latest expirable version for the next higher {minor/major} (not necessarily consecutive n+1) version from a set of expirable versions.
+// A version qualifies if its classification is not preview and the optional predicate does not filter out the version.
+// If the predicate returns true, the version is not considered for the latest qualifying version.
+func GetQualifyingVersionForNextHigher(versions []gardencorev1beta1.ExpirableVersion, majorOrMinor GetMajorOrMinor, currentSemVerVersion *semver.Version, predicates ...VersionPredicate) (qualifyingVersionFound bool, qualifyingVersion *gardencorev1beta1.ExpirableVersion, nextMinorOrMajor int64, err error) {
+	// How to find the highest version with the next higher (not necessarily consecutive n+1) minor version (if the next higher minor version has no qualifying version, skip it to avoid consecutive updates)
+	// 1) Sort the versions in ascending order
+	// 2) Loop over the sorted array until the minor version changes (select all versions for the next higher minor)
+	//    - predicates filter out version with minor/major <= current_minor/major
+	// 3) Then select the last version in the array (that's the highest)
+
+	slices.SortFunc(versions, func(a, b gardencorev1beta1.ExpirableVersion) int {
+		return semver.MustParse(a.Version).Compare(semver.MustParse(b.Version))
+	})
+
+	var (
+		highestVersionNextHigherMinorOrMajor   *semver.Version
+		nextMajorOrMinorVersion                int64 = -1
+		expirableVersionNextHigherMinorOrMajor       = gardencorev1beta1.ExpirableVersion{}
+	)
+
+OUTER:
+	for _, v := range versions {
+		parse, err := semver.NewVersion(v.Version)
+		if err != nil {
+			return false, nil, 0, err
+		}
+
+		// Determine the next higher minor/major version, even though all versions from that minor/major might be filtered (e.g, all expired)
+		// That's required so that the caller can determine if the next minor/major version has been skipped or not.
+		if majorOrMinor(*parse) > majorOrMinor(*currentSemVerVersion) && (majorOrMinor(*parse) < nextMajorOrMinorVersion || nextMajorOrMinorVersion == -1) {
+			nextMajorOrMinorVersion = majorOrMinor(*parse)
+		}
+
+		// never update to preview versions
+		if v.Classification != nil && *v.Classification == gardencorev1beta1.ClassificationPreview {
+			continue
+		}
+
+		for _, p := range predicates {
+			if p == nil {
+				continue
+			}
+
+			shouldFilter, err := p(v, parse)
+			if err != nil {
+				return false, nil, nextMajorOrMinorVersion, fmt.Errorf("error while evaluation predicate: %w", err)
+			}
+			if shouldFilter {
+				continue OUTER
+			}
+		}
+
+		// last version is the highest version for next larger minor/major
+		if highestVersionNextHigherMinorOrMajor != nil && majorOrMinor(*parse) > majorOrMinor(*highestVersionNextHigherMinorOrMajor) {
+			break
+		}
+		highestVersionNextHigherMinorOrMajor = parse
+		expirableVersionNextHigherMinorOrMajor = v
+	}
+
+	// unable to find qualified versions
+	if highestVersionNextHigherMinorOrMajor == nil {
+		return false, nil, nextMajorOrMinorVersion, nil
+	}
+	return true, &expirableVersionNextHigherMinorOrMajor, nextMajorOrMinorVersion, nil
+}
+
+// FilterDifferentMajorMinorVersionAndLowerPatchVersionsOfSameMinor returns a VersionPredicate(closure) that returns true if a given version v
+//   - has a different major.minor version compared to the currentSemVerVersion
+//   - has a lower patch version (acts as >= relational operator)
+//
+// Uses the tilde range operator.
+func FilterDifferentMajorMinorVersionAndLowerPatchVersionsOfSameMinor(currentSemVerVersion semver.Version) VersionPredicate {
 	return func(_ gardencorev1beta1.ExpirableVersion, v *semver.Version) (bool, error) {
 		isWithinRange, err := versionutils.CompareVersions(v.String(), "~", currentSemVerVersion.String())
 		if err != nil {
@@ -790,15 +858,12 @@ func FilterDifferentMajorMinorVersion(currentSemVerVersion semver.Version) Versi
 }
 
 // FilterNonConsecutiveMinorVersion returns a VersionPredicate(closure) that evaluates whether a given version v has a consecutive minor version compared to the currentSemVerVersion
-// returns true if v does not have a consecutive minor version
+//   - implicitly, therefore also versions cannot be smaller than the current version
+//
+// returns true if v does not have a consecutive minor version.
 func FilterNonConsecutiveMinorVersion(currentSemVerVersion semver.Version) VersionPredicate {
 	return func(_ gardencorev1beta1.ExpirableVersion, v *semver.Version) (bool, error) {
-		isWithinRange, err := versionutils.CompareVersions(v.String(), "^", currentSemVerVersion.String())
-		if err != nil {
-			return true, err
-		}
-
-		if !isWithinRange {
+		if v.Major() != currentSemVerVersion.Major() {
 			return true, nil
 		}
 
@@ -807,8 +872,32 @@ func FilterNonConsecutiveMinorVersion(currentSemVerVersion semver.Version) Versi
 	}
 }
 
-// FilterSameVersion returns a VersionPredicate(closure) that evaluates whether a given version v is equal to the currentSemVerVersion
-// returns true if it is equal
+// FilterDifferentMajorVersion returns a VersionPredicate(closure) that evaluates whether a given version v has the same major version compared to the currentSemVerVersion.
+// Returns true if v does not have the same major version.
+func FilterDifferentMajorVersion(currentSemVerVersion semver.Version) VersionPredicate {
+	return func(_ gardencorev1beta1.ExpirableVersion, v *semver.Version) (bool, error) {
+		return v.Major() != currentSemVerVersion.Major(), nil
+	}
+}
+
+// FilterEqualAndSmallerMajorVersion returns a VersionPredicate(closure) that evaluates whether a given version v has a smaller major version compared to the currentSemVerVersion.
+// Returns true if v has a smaller or equal major version.
+func FilterEqualAndSmallerMajorVersion(currentSemVerVersion semver.Version) VersionPredicate {
+	return func(_ gardencorev1beta1.ExpirableVersion, v *semver.Version) (bool, error) {
+		return v.Major() <= currentSemVerVersion.Major(), nil
+	}
+}
+
+// FilterEqualAndSmallerMinorVersion returns a VersionPredicate(closure) that evaluates whether a given version v has a smaller or equal minor version compared to the currentSemVerVersion.
+// Returns true if v has a smaller or equal minor version.
+func FilterEqualAndSmallerMinorVersion(currentSemVerVersion semver.Version) VersionPredicate {
+	return func(_ gardencorev1beta1.ExpirableVersion, v *semver.Version) (bool, error) {
+		return v.Minor() <= currentSemVerVersion.Minor(), nil
+	}
+}
+
+// FilterSameVersion returns a VersionPredicate(closure) that evaluates whether a given version v is equal to the currentSemVerVersion.
+// returns true if it is equal.
 func FilterSameVersion(currentSemVerVersion semver.Version) VersionPredicate {
 	return func(_ gardencorev1beta1.ExpirableVersion, v *semver.Version) (bool, error) {
 		return v.Equal(&currentSemVerVersion), nil
@@ -991,23 +1080,23 @@ func ShootDNSProviderSecretNamesEqual(oldDNS, newDNS *gardencorev1beta1.DNS) boo
 	return oldNames.Equal(newNames)
 }
 
-// ShootSecretResourceReferencesEqual returns true when at least one of the Secret resource references inside a Shoot
+// ShootResourceReferencesEqual returns true when at least one of the Secret/ConfigMap resource references inside a Shoot
 // has been changed.
-func ShootSecretResourceReferencesEqual(oldResources, newResources []gardencorev1beta1.NamedResourceReference) bool {
+func ShootResourceReferencesEqual(oldResources, newResources []gardencorev1beta1.NamedResourceReference) bool {
 	var (
 		oldNames = sets.New[string]()
 		newNames = sets.New[string]()
 	)
 
 	for _, resource := range oldResources {
-		if resource.ResourceRef.APIVersion == "v1" && resource.ResourceRef.Kind == "Secret" {
-			oldNames.Insert(resource.ResourceRef.Name)
+		if resource.ResourceRef.APIVersion == "v1" && sets.New("Secret", "ConfigMap").Has(resource.ResourceRef.Kind) {
+			oldNames.Insert(resource.ResourceRef.Kind + "/" + resource.ResourceRef.Name)
 		}
 	}
 
 	for _, resource := range newResources {
-		if resource.ResourceRef.APIVersion == "v1" && resource.ResourceRef.Kind == "Secret" {
-			newNames.Insert(resource.ResourceRef.Name)
+		if resource.ResourceRef.APIVersion == "v1" && sets.New("Secret", "ConfigMap").Has(resource.ResourceRef.Kind) {
+			newNames.Insert(resource.ResourceRef.Kind + "/" + resource.ResourceRef.Name)
 		}
 	}
 
@@ -1032,8 +1121,8 @@ func GetShootAuditPolicyConfigMapRef(apiServerConfig *gardencorev1beta1.KubeAPIS
 	return nil
 }
 
-// ShootWantsAnonymousAuthentication returns true if anonymous authentication is set explicitly to 'true' and false otherwise.
-func ShootWantsAnonymousAuthentication(kubeAPIServerConfig *gardencorev1beta1.KubeAPIServerConfig) bool {
+// AnonymousAuthenticationEnabled returns true if anonymous authentication is set explicitly to 'true' and false otherwise.
+func AnonymousAuthenticationEnabled(kubeAPIServerConfig *gardencorev1beta1.KubeAPIServerConfig) bool {
 	if kubeAPIServerConfig == nil {
 		return false
 	}
@@ -1090,7 +1179,7 @@ func SecretBindingHasType(secretBinding *gardencorev1beta1.SecretBinding, provid
 		return false
 	}
 
-	return sets.New[string](types...).Has(providerType)
+	return sets.New(types...).Has(providerType)
 }
 
 // AddTypeToSecretBinding adds the given provider type to the SecretBinding.
@@ -1103,7 +1192,7 @@ func AddTypeToSecretBinding(secretBinding *gardencorev1beta1.SecretBinding, prov
 	}
 
 	types := GetSecretBindingTypes(secretBinding)
-	if !sets.New[string](types...).Has(providerType) {
+	if !sets.New(types...).Has(providerType) {
 		types = append(types, providerType)
 	}
 	secretBinding.Provider.Type = strings.Join(types, ",")
@@ -1134,17 +1223,8 @@ func IsCoreDNSRewritingEnabled(featureGate bool, annotations map[string]string) 
 }
 
 // IsNodeLocalDNSEnabled indicates whether the node local DNS cache is enabled or not.
-// It can be enabled via the annotation (legacy) or via the shoot specification.
-func IsNodeLocalDNSEnabled(systemComponents *gardencorev1beta1.SystemComponents, annotations map[string]string) bool {
-	fromSpec := false
-	if systemComponents != nil && systemComponents.NodeLocalDNS != nil {
-		fromSpec = systemComponents.NodeLocalDNS.Enabled
-	}
-	fromAnnotation := false
-	if annotationValue, err := strconv.ParseBool(annotations[v1beta1constants.AnnotationNodeLocalDNS]); err == nil {
-		fromAnnotation = annotationValue
-	}
-	return fromSpec || fromAnnotation
+func IsNodeLocalDNSEnabled(systemComponents *gardencorev1beta1.SystemComponents) bool {
+	return systemComponents != nil && systemComponents.NodeLocalDNS != nil && systemComponents.NodeLocalDNS.Enabled
 }
 
 // GetNodeLocalDNS returns a pointer to the NodeLocalDNS spec.
@@ -1255,7 +1335,7 @@ func IsShootSSHKeypairRotationInitiationTimeAfterLastCompletionTime(credentials 
 
 // MutateObservabilityRotation mutates the .status.credentials.rotation.observability field based on the provided
 // mutation function. If the field is nil then it is initialized.
-func MutateObservabilityRotation(shoot *gardencorev1beta1.Shoot, f func(*gardencorev1beta1.ShootObservabilityRotation)) {
+func MutateObservabilityRotation(shoot *gardencorev1beta1.Shoot, f func(*gardencorev1beta1.ObservabilityRotation)) {
 	if f == nil {
 		return
 	}
@@ -1267,7 +1347,7 @@ func MutateObservabilityRotation(shoot *gardencorev1beta1.Shoot, f func(*gardenc
 		shoot.Status.Credentials.Rotation = &gardencorev1beta1.ShootCredentialsRotation{}
 	}
 	if shoot.Status.Credentials.Rotation.Observability == nil {
-		shoot.Status.Credentials.Rotation.Observability = &gardencorev1beta1.ShootObservabilityRotation{}
+		shoot.Status.Credentials.Rotation.Observability = &gardencorev1beta1.ObservabilityRotation{}
 	}
 
 	f(shoot.Status.Credentials.Rotation.Observability)
@@ -1348,6 +1428,11 @@ func MutateShootETCDEncryptionKeyRotation(shoot *gardencorev1beta1.Shoot, f func
 
 // IsPSPDisabled returns true if the PodSecurityPolicy plugin is explicitly disabled in the ShootSpec or the cluster version is >= 1.25.
 func IsPSPDisabled(shoot *gardencorev1beta1.Shoot) bool {
+	// we have disabled the policy/v1beta1/podsecuritypolicies API for workerless Shoots
+	if IsWorkerless(shoot) {
+		return true
+	}
+
 	if versionutils.ConstraintK8sGreaterEqual125.Check(semver.MustParse(shoot.Spec.Kubernetes.Version)) {
 		return true
 	}
@@ -1382,9 +1467,15 @@ func IsMultiZonalShootControlPlane(shoot *gardencorev1beta1.Shoot) bool {
 	return shoot.Spec.ControlPlane != nil && shoot.Spec.ControlPlane.HighAvailability != nil && shoot.Spec.ControlPlane.HighAvailability.FailureTolerance.Type == gardencorev1beta1.FailureToleranceTypeZone
 }
 
+// IsWorkerless checks if the shoot has zero workers.
+func IsWorkerless(shoot *gardencorev1beta1.Shoot) bool {
+	return len(shoot.Spec.Provider.Workers) == 0
+}
+
 // ShootEnablesSSHAccess returns true if ssh access to worker nodes should be allowed for the given shoot.
 func ShootEnablesSSHAccess(shoot *gardencorev1beta1.Shoot) bool {
-	return shoot.Spec.Provider.WorkersSettings == nil || shoot.Spec.Provider.WorkersSettings.SSHAccess == nil || shoot.Spec.Provider.WorkersSettings.SSHAccess.Enabled
+	return !IsWorkerless(shoot) &&
+		(shoot.Spec.Provider.WorkersSettings == nil || shoot.Spec.Provider.WorkersSettings.SSHAccess == nil || shoot.Spec.Provider.WorkersSettings.SSHAccess.Enabled)
 }
 
 // GetFailureToleranceType determines the failure tolerance type of the given shoot.
@@ -1395,13 +1486,13 @@ func GetFailureToleranceType(shoot *gardencorev1beta1.Shoot) *gardencorev1beta1.
 	return nil
 }
 
-// SeedWantsManagedIngress returns true in case the seed cluster wants its ingress controller to be managed by Gardener.
-func SeedWantsManagedIngress(seed *gardencorev1beta1.Seed) bool {
-	return seed.Spec.DNS.Provider != nil && seed.Spec.Ingress != nil && seed.Spec.Ingress.Controller.Kind == v1beta1constants.IngressKindNginx
-}
-
 // IsTopologyAwareRoutingForShootControlPlaneEnabled returns whether the topology aware routing is enabled for the given Shoot control plane.
 // Topology-aware routing is enabled when the corresponding Seed setting is enabled and the Shoot has a multi-zonal control plane.
 func IsTopologyAwareRoutingForShootControlPlaneEnabled(seed *gardencorev1beta1.Seed, shoot *gardencorev1beta1.Shoot) bool {
 	return SeedSettingTopologyAwareRoutingEnabled(seed.Spec.Settings) && IsMultiZonalShootControlPlane(shoot)
+}
+
+// ShootHasOperationType returns true when the 'type' in the last operation matches the provided type.
+func ShootHasOperationType(lastOperation *gardencorev1beta1.LastOperation, lastOperationType gardencorev1beta1.LastOperationType) bool {
+	return lastOperation != nil && lastOperation.Type == lastOperationType
 }

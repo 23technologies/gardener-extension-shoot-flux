@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (c) 2022 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+# Copyright 2022 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ usage() {
   echo "Usage:"
   echo "> compare-k8s-admission-plugins.sh [ -h | <old version> <new version> ]"
   echo
-  echo ">> For example: compare-k8s-admission-plugins.sh 1.22 1.23"
+  echo ">> For example: compare-k8s-admission-plugins.sh 1.26 1.27"
 
   exit 0
 }
@@ -49,7 +49,7 @@ for version in "${versions[@]}"; do
   awk '/var AllOrderedPlugins = \[\]string\{/,/\}/' "${out_dir}/options_plugins.go" > "${out_dir}/ordered_admission_plugins.txt"
   grep  '\.Register' "${out_dir}/options_plugins.go" | awk '{print $1}' | { grep -Eo '^[a-z]\w+' || true; } > "${out_dir}/plugin_packages.txt"
   grep  '\.Register' "${out_dir}/server_plugins.go" | awk '{print $1}' | { grep -Eo '^[a-z]\w+' || true; } >> "${out_dir}/plugin_packages.txt"
-  while read plugin_package; do
+  while read -r plugin_package; do
     grep -E "\s+${plugin_package}\..*,.*" "${out_dir}/ordered_admission_plugins.txt" | { grep -Eo '//\s*[a-z|A-Z]\w+' | tr -d '//' | tr -d ' ' || true; }  >> "${out_dir}/admissionplugins-${version}.txt"
   done < "${out_dir}/plugin_packages.txt"
 

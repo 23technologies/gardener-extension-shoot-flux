@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/inject"
 
 	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 )
@@ -34,20 +34,12 @@ type operationAnnotationWrapper struct {
 // removes the Gardener operation annotation before `Reconcile` is called.
 //
 // This is useful in conjunction with the HasOperationAnnotation predicate.
-func OperationAnnotationWrapper(newObjFunc func() client.Object, reconciler reconcile.Reconciler) reconcile.Reconciler {
+func OperationAnnotationWrapper(mgr manager.Manager, newObjFunc func() client.Object, reconciler reconcile.Reconciler) reconcile.Reconciler {
 	return &operationAnnotationWrapper{
+		client:     mgr.GetClient(),
 		newObjFunc: newObjFunc,
 		Reconciler: reconciler,
 	}
-}
-
-func (o *operationAnnotationWrapper) InjectClient(client client.Client) error {
-	o.client = client
-	return nil
-}
-
-func (o *operationAnnotationWrapper) InjectFunc(f inject.Func) error {
-	return f(o.Reconciler)
 }
 
 func (o *operationAnnotationWrapper) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {

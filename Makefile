@@ -86,7 +86,7 @@ install-requirements:
 
 .PHONY: revendor
 revendor:
-	@GO111MODULE=on go mod tidy -compat=1.20
+	@GO111MODULE=on go mod tidy
 	@GO111MODULE=on go mod vendor
 	@chmod +x $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/*
 	@chmod +x $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/.ci/*
@@ -100,16 +100,11 @@ revendor:
 .PHONY: clean
 clean:
 	@$(shell find ./example -type f -name "controller-registration.yaml" -exec rm '{}' \;)
-	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/clean.sh ./cmd/... ./pkg/... ./test/...
+	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/clean.sh ./cmd/... ./pkg/... 
 
 .PHONY: check-generate
 check-generate:
 	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/check-generate.sh $(REPO_ROOT)
-
-# TODO: after next gardener/gardener revendoring use the docforge instance in the tools directory
-.PHONY: check-docforge
-check-docforge:
-	@./hack/check-docforge.sh
 
 .PHONY: check
 check: $(GOIMPORTS)
@@ -119,11 +114,11 @@ check: $(GOIMPORTS)
 .PHONY: generate
 generate:
 	@GO111MODULE=off hack/update-codegen.sh --parallel
-	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/generate.sh ./charts/... ./cmd/... ./pkg/... ./test/...
+	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/generate.sh ./charts/... ./cmd/... ./pkg/...
 
 .PHONY: format
-format:
-	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/format.sh ./cmd ./pkg ./test
+format: $(GOIMPORTSREVISER)
+	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/format.sh ./cmd ./pkg
 
 .PHONY: test
 test:
@@ -138,7 +133,7 @@ test-clean:
 	@$(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/test-cover-clean.sh
 
 .PHONY: verify
-verify: check check-docforge format test
+verify: check format test
 
 .PHONY: verify-extended
-verify-extended: install-requirements check-generate check check-docforge format test test-cov test-clean
+verify-extended: install-requirements check-generate check format test test-cov test-clean

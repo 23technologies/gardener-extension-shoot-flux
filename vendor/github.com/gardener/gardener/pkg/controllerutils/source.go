@@ -1,4 +1,4 @@
-// Copyright (c) 2022 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2022 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ var EnqueueOnce = source.Func(func(_ context.Context, _ handler.EventHandler, q 
 
 // HandleOnce is a source.Source that simply triggers the reconciler once by calling 'Create' at the event handler with
 // an empty event.CreateEvent.
-var HandleOnce = source.Func(func(_ context.Context, handler handler.EventHandler, queue workqueue.RateLimitingInterface, _ ...predicate.Predicate) error {
-	handler.Create(event.CreateEvent{}, queue)
+var HandleOnce = source.Func(func(ctx context.Context, handler handler.EventHandler, queue workqueue.RateLimitingInterface, _ ...predicate.Predicate) error {
+	handler.Create(ctx, event.CreateEvent{}, queue)
 	return nil
 })

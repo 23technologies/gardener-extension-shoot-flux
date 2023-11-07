@@ -1,4 +1,4 @@
-// Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,9 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/inject"
-
-	contextutils "github.com/gardener/gardener/pkg/utils/context"
 )
 
 // Mapper maps an object to a collection of keys to be enqueued
@@ -56,11 +53,13 @@ func (f MapFunc) Map(ctx context.Context, log logr.Logger, reader client.Reader,
 // behavior on UpdateEvents.
 // For UpdateEvents, the given UpdateBehavior decides if only the old, only the new or both objects should be mapped
 // and enqueued.
-func EnqueueRequestsFrom(m Mapper, updateBehavior UpdateBehavior, log logr.Logger) handler.EventHandler {
+func EnqueueRequestsFrom(ctx context.Context, cache cache.Cache, m Mapper, updateBehavior UpdateBehavior, log logr.Logger) handler.EventHandler {
 	return &enqueueRequestsFromMapFunc{
 		mapper:         m,
 		updateBehavior: updateBehavior,
+		ctx:            ctx,
 		log:            log,
+		reader:         cache,
 	}
 }
 
@@ -87,28 +86,11 @@ const (
 	UpdateWithNew
 )
 
-func (e *enqueueRequestsFromMapFunc) InjectCache(c cache.Cache) error {
-	e.reader = c
-	return nil
-}
-
-func (e *enqueueRequestsFromMapFunc) InjectStopChannel(stopCh <-chan struct{}) error {
-	e.ctx = contextutils.FromStopChannel(stopCh)
-	return nil
-}
-
-func (e *enqueueRequestsFromMapFunc) InjectFunc(f inject.Func) error {
-	if f == nil {
-		return nil
-	}
-	return f(e.mapper)
-}
-
-func (e *enqueueRequestsFromMapFunc) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestsFromMapFunc) Create(_ context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 
-func (e *enqueueRequestsFromMapFunc) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestsFromMapFunc) Update(_ context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	switch e.updateBehavior {
 	case UpdateWithOldAndNew:
 		e.mapAndEnqueue(q, evt.ObjectOld)
@@ -120,11 +102,11 @@ func (e *enqueueRequestsFromMapFunc) Update(evt event.UpdateEvent, q workqueue.R
 	}
 }
 
-func (e *enqueueRequestsFromMapFunc) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestsFromMapFunc) Delete(_ context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 
-func (e *enqueueRequestsFromMapFunc) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestsFromMapFunc) Generic(_ context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 

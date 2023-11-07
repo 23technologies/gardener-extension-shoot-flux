@@ -6,18 +6,19 @@
 package healthcheck
 
 import (
+	"context"
 	"time"
 
-	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
 	extensionconfig "github.com/gardener/gardener/extensions/pkg/apis/config"
 	"github.com/gardener/gardener/extensions/pkg/controller/healthcheck"
-	"github.com/gardener/gardener/extensions/pkg/controller/healthcheck/general"
 	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/constants"
 )
 
 var (
@@ -34,8 +35,9 @@ var (
 // PARAMETERS
 // mgr  manager.Manager            Health check controller manager instance
 // opts healthcheck.DefaultAddArgs Options to add
-func RegisterHealthChecks(mgr manager.Manager, opts healthcheck.DefaultAddArgs) error {
+func RegisterHealthChecks(ctx context.Context, mgr manager.Manager, opts healthcheck.DefaultAddArgs) error {
 	return healthcheck.DefaultRegistration(
+		ctx,
 		constants.ExtensionType,
 		extensionsv1alpha1.SchemeGroupVersion.WithKind(extensionsv1alpha1.ExtensionResource),
 		func() client.ObjectList { return &extensionsv1alpha1.ExtensionList{} },
@@ -43,20 +45,12 @@ func RegisterHealthChecks(mgr manager.Manager, opts healthcheck.DefaultAddArgs) 
 		mgr,
 		opts,
 		nil,
-		[]healthcheck.ConditionTypeToHealthCheck{
-			{
-				ConditionType: string(gardencorev1beta1.ShootSystemComponentsHealthy),
-				HealthCheck:   general.CheckManagedResource(constants.ManagedResourceNameFluxInstall),
-			},
-			{
-				ConditionType: string(gardencorev1beta1.ShootSystemComponentsHealthy),
-				HealthCheck:   general.CheckManagedResource(constants.ManagedResourceNameFluxConfig),
-			},
-		},
+		nil,
+		sets.New(gardencorev1beta1.ShootSystemComponentsHealthy),
 	)
 }
 
 // AddToManager adds a controller with the default Options.
-func AddToManager(mgr manager.Manager) error {
-	return RegisterHealthChecks(mgr, DefaultAddOptions)
+func AddToManager(ctx context.Context, mgr manager.Manager) error {
+	return RegisterHealthChecks(ctx, mgr, DefaultAddOptions)
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+// Copyright 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ type GardenletConfiguration struct {
 	// by the Gardenlet in the seed clusters.
 	// +optional
 	Logging *Logging `json:"logging,omitempty"`
-	// SNI contains an optional configuration for the APIServerSNI feature used
+	// SNI contains an optional configuration for the SNI settings used
 	// by the Gardenlet in the seed clusters.
 	// +optional
 	SNI *SNI `json:"sni,omitempty"`
@@ -87,6 +87,9 @@ type GardenletConfiguration struct {
 	// MonitoringConfig is optional and adds additional settings for the monitoring stack.
 	// +optional
 	Monitoring *MonitoringConfig `json:"monitoring,omitempty"`
+	// NodeToleration contains optional settings for default tolerations.
+	// +optional
+	NodeToleration *NodeToleration `json:"nodeToleration,omitempty"`
 }
 
 // GardenClientConnection specifies the kubeconfig file and the client connection settings
@@ -123,7 +126,6 @@ type KubeconfigValidity struct {
 	// .spec.expirationSeconds in the created CertificateSigningRequest resource.
 	// This value is not defaulted, meaning that the value configured via `--cluster-signing-duration` on
 	// kube-controller-manager is used.
-	// Note that using this value will only have effect for garden clusters >= Kubernetes 1.22.
 	// Note that changing this value will only have effect after the next rotation of the gardenlet's kubeconfig secret.
 	// +optional
 	Validity *metav1.Duration `json:"validity,omitempty"`
@@ -183,18 +185,18 @@ type GardenletControllerConfiguration struct {
 	// ShootCare defines the configuration of the ShootCare controller.
 	// +optional
 	ShootCare *ShootCareControllerConfiguration `json:"shootCare,omitempty"`
-	// ShootStateSync defines the configuration of the ShootState controller
+	// ShootState defines the configuration of the ShootState controller.
 	// +optional
-	ShootStateSync *ShootStateSyncControllerConfiguration `json:"shootStateSync,omitempty"`
+	ShootState *ShootStateControllerConfiguration `json:"shootState,omitempty"`
 	// NetworkPolicy defines the configuration of the NetworkPolicy controller
 	// +optional
 	NetworkPolicy *NetworkPolicyControllerConfiguration `json:"networkPolicy,omitempty"`
-	// ManagedSeedControllerConfiguration defines the configuration of the ManagedSeed controller.
+	// ManagedSeed defines the configuration of the ManagedSeed controller.
 	// +optional
 	ManagedSeed *ManagedSeedControllerConfiguration `json:"managedSeed,omitempty"`
-	// ShootSecretControllerConfiguration defines the configuration of the ShootSecret controller.
+	// TokenRequestorControllerConfiguration defines the configuration of the TokenRequestor controller.
 	// +optional
-	ShootSecret *ShootSecretControllerConfiguration `json:"shootSecret,omitempty"`
+	TokenRequestor *TokenRequestorControllerConfiguration `json:"tokenRequestor,omitempty"`
 }
 
 // BackupBucketControllerConfiguration defines the configuration of the BackupBucket
@@ -352,11 +354,15 @@ type SeedCareControllerConfiguration struct {
 	ConditionThresholds []ConditionThreshold `json:"conditionThresholds,omitempty"`
 }
 
-// ShootSecretControllerConfiguration defines the configuration of the ShootSecret controller.
-type ShootSecretControllerConfiguration struct {
+// ShootStateControllerConfiguration defines the configuration of the ShootState controller.
+type ShootStateControllerConfiguration struct {
 	// ConcurrentSyncs is the number of workers used for the controller to work on events.
 	// +optional
 	ConcurrentSyncs *int `json:"concurrentSyncs,omitempty"`
+	// SyncPeriod is the duration how often the existing resources are reconciled (how
+	// often the health check of Seed clusters is performed
+	// +optional
+	SyncPeriod *metav1.Duration `json:"syncPeriod,omitempty"`
 }
 
 // StaleExtensionHealthChecks defines the configuration of the check for stale extension health checks.
@@ -379,20 +385,16 @@ type ConditionThreshold struct {
 	Duration metav1.Duration `json:"duration"`
 }
 
-// ShootStateSyncControllerConfiguration defines the configuration of the ShootState Sync controller.
-type ShootStateSyncControllerConfiguration struct {
-	// ConcurrentSyncs is the number of workers used for the controller to work on
-	// events.
-	// +optional
-	ConcurrentSyncs *int `json:"concurrentSyncs,omitempty"`
-}
-
 // NetworkPolicyControllerConfiguration defines the configuration of the NetworkPolicy
 // controller.
 type NetworkPolicyControllerConfiguration struct {
 	// ConcurrentSyncs is the number of workers used for the controller to work on events.
 	// +optional
 	ConcurrentSyncs *int `json:"concurrentSyncs,omitempty"`
+	// AdditionalNamespaceSelectors is a list of label selectors for additional namespaces that should be considered by
+	// the controller.
+	// +optional
+	AdditionalNamespaceSelectors []metav1.LabelSelector `json:"additionalNamespaceSelectors,omitempty"`
 }
 
 // ManagedSeedControllerConfiguration defines the configuration of the ManagedSeed controller.
@@ -418,6 +420,13 @@ type ManagedSeedControllerConfiguration struct {
 	JitterUpdates *bool `json:"jitterUpdates,omitempty"`
 }
 
+// TokenRequestorControllerConfiguration defines the configuration of the TokenRequestor controller.
+type TokenRequestorControllerConfiguration struct {
+	// ConcurrentSyncs is the number of workers used for the controller to work on events.
+	// +optional
+	ConcurrentSyncs *int `json:"concurrentSyncs,omitempty"`
+}
+
 // ResourcesConfiguration defines the total capacity for seed resources and the amount reserved for use by Gardener.
 type ResourcesConfiguration struct {
 	// Capacity defines the total resources of a seed.
@@ -434,47 +443,21 @@ type SeedConfig struct {
 	gardencorev1beta1.SeedTemplate `json:",inline"`
 }
 
-// FluentBit contains configuration for Fluent Bit.
-type FluentBit struct {
-	// ServiceSection defines [SERVICE] configuration for the fluent-bit.
-	// If it is nil, fluent-bit uses default service configuration.
-	// +optional
-	ServiceSection *string `json:"service,omitempty" yaml:"service,omitempty"`
-	// InputSection defines [INPUT] configuration for the fluent-bit.
-	// If it is nil, fluent-bit uses default input configuration.
-	// +optional
-	InputSection *string `json:"input,omitempty" yaml:"input,omitempty"`
-	// OutputSection defines [OUTPUT] configuration for the fluent-bit.
-	// If it is nil, fluent-bit uses default output configuration.
-	// +optional
-	OutputSection *string `json:"output,omitempty" yaml:"output,omitempty"`
-	// NetworkPolicy defines settings for the fluent-bit NetworkPolicy.
-	// +optional
-	NetworkPolicy *FluentBitNetworkPolicy `json:"networkPolicy,omitempty" yaml:"networkPolicy,omitempty"`
-}
-
-// FluentBitNetworkPolicy defines settings for the fluent-bit NetworkPolicy.
-type FluentBitNetworkPolicy struct {
-	// AdditionalEgressIPBlocks contains IP CIDRs for the egress network policy.
-	// +optional
-	AdditionalEgressIPBlocks []string `json:"additionalEgressIPBlocks,omitempty" yaml:"additionalEgressIPBlocks,omitempty"`
-}
-
-// Loki contains configuration for the Loki.
-type Loki struct {
-	// Enabled is used to enable or disable the shoot and seed Loki.
-	// If FluentBit is used with a custom output the Loki can, Loki is maybe unused and can be disabled.
-	// If not set, by default Loki is enabled
+// Vali contains configuration for the Vali.
+type Vali struct {
+	// Enabled is used to enable or disable the shoot and seed Vali.
+	// If FluentBit is used with a custom output the Vali can, Vali is maybe unused and can be disabled.
+	// If not set, by default Vali is enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	// Garden contains configuration for the Loki in garden namespace.
+	// Garden contains configuration for the Vali in garden namespace.
 	// +optional
-	Garden *GardenLoki `json:"garden,omitempty" yaml:"garden,omitempty"`
+	Garden *GardenVali `json:"garden,omitempty" yaml:"garden,omitempty"`
 }
 
-// GardenLoki contains configuration for the Loki in garden namespace.
-type GardenLoki struct {
-	// Storage is the disk storage capacity of the central Loki.
+// GardenVali contains configuration for the Vali in garden namespace.
+type GardenVali struct {
+	// Storage is the disk storage capacity of the central Vali.
 	// Defaults to 100Gi.
 	// +optional
 	Storage *resource.Quantity `json:"storage,omitempty" yaml:"storage,omitempty"`
@@ -499,12 +482,9 @@ type Logging struct {
 	// Enabled is used to enable or disable logging stack for clusters.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	// FluentBit contains configurations for the fluent-bit
+	// Vali contains configuration for the Vali
 	// +optional
-	FluentBit *FluentBit `json:"fluentBit,omitempty" yaml:"fluentBit,omitempty"`
-	// Loki contains configuration for the Loki
-	// +optional
-	Loki *Loki `json:"loki,omitempty" yaml:"loki,omitempty"`
+	Vali *Vali `json:"vali,omitempty" yaml:"vali,omitempty"`
 	// ShootNodeLogging contains configurations for the shoot node logging
 	// +optional
 	ShootNodeLogging *ShootNodeLogging `json:"shootNodeLogging,omitempty" yaml:"shootNodeLogging,omitempty"`
@@ -531,7 +511,7 @@ type Server struct {
 	Port int `json:"port"`
 }
 
-// SNI contains an optional configuration for the APIServerSNI feature used
+// SNI contains an optional configuration for the SNI settings used
 // by the Gardenlet in the seed clusters.
 type SNI struct {
 	// Ingress is the ingressgateway configuration.
@@ -574,6 +554,12 @@ type ETCDConfig struct {
 	// BackupLeaderElection contains configuration for the leader election for the etcd backup-restore sidecar.
 	// +optional
 	BackupLeaderElection *ETCDBackupLeaderElection `json:"backupLeaderElection,omitempty"`
+	// FeatureGates is a map of feature names to bools that enable or disable alpha/experimental
+	// features. This field modifies piecemeal the built-in default values from
+	// "github.com/gardener/etcd-druid/pkg/features/features.go".
+	// Default: nil
+	// +optional
+	FeatureGates map[string]bool `json:"featureGates,omitempty"`
 }
 
 // ETCDController contains config specific to ETCD controller
@@ -610,6 +596,10 @@ type BackupCompactionController struct {
 	// Defaults to 3 hours
 	// +optional
 	ActiveDeadlineDuration *metav1.Duration `json:"activeDeadlineDuration,omitempty"`
+	// MetricsScrapeWaitDuration is the duration to wait for after compaction job is completed, to allow Prometheus metrics to be scraped
+	// Defaults to 60 seconds
+	// +optional
+	MetricsScrapeWaitDuration *metav1.Duration `json:"metricsScrapeWaitDuration,omitempty"`
 }
 
 // ETCDBackupLeaderElection contains configuration for the leader election for the etcd backup-restore sidecar.
@@ -630,7 +620,7 @@ type ExposureClassHandler struct {
 	// load balancer to apply the control plane endpoint exposure strategy.
 	LoadBalancerService LoadBalancerServiceConfig `json:"loadBalancerService"`
 	// SNI contains optional configuration for a dedicated ingressgateway belonging to
-	// an exposure class handler. This is only required in context of the APIServerSNI feature of the gardenlet.
+	// an exposure class handler.
 	// +optional
 	SNI *SNI `json:"sni,omitempty"`
 }
@@ -717,5 +707,17 @@ const (
 // DefaultControllerSyncPeriod is a default value for sync period for controllers.
 var DefaultControllerSyncPeriod = metav1.Duration{Duration: time.Minute}
 
-// DefaultCentralLokiStorage is a default value for garden/loki's storage.
-var DefaultCentralLokiStorage = resource.MustParse("100Gi")
+// DefaultCentralValiStorage is a default value for garden/vali's storage.
+var DefaultCentralValiStorage = resource.MustParse("100Gi")
+
+// NodeToleration contains information about node toleration options.
+type NodeToleration struct {
+	// DefaultNotReadyTolerationSeconds specifies the seconds for the `node.kubernetes.io/not-ready` toleration that
+	// should be added to pods not already tolerating this taint.
+	// +optional
+	DefaultNotReadyTolerationSeconds *int64 `json:"defaultNotReadyTolerationSeconds,omitempty"`
+	// DefaultUnreachableTolerationSeconds specifies the seconds for the `node.kubernetes.io/unreachable` toleration that
+	// should be added to pods not already tolerating this taint.
+	// +optional
+	DefaultUnreachableTolerationSeconds *int64 `json:"defaultUnreachableTolerationSeconds,omitempty"`
+}

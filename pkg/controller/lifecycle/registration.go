@@ -6,13 +6,14 @@
 package lifecycle
 
 import (
+	"context"
 	"time"
-
-	"github.com/23technologies/gardener-extension-shoot-flux/pkg/constants"
 
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/constants"
 )
 
 const (
@@ -39,14 +40,14 @@ type AddOptions struct {
 //
 // PARAMETERS
 // mgr  manager.Manager Lifecycle controller manager instance
-func AddToManager(mgr manager.Manager) error {
-	return extension.Add(mgr, extension.AddArgs{
+func AddToManager(ctx context.Context, mgr manager.Manager) error {
+	return extension.Add(ctx, mgr, extension.AddArgs{
 		Actuator:          NewActuator(),
 		ControllerOptions: DefaultAddOptions.ControllerOptions,
 		Name:              Name,
 		FinalizerSuffix:   FinalizerSuffix,
 		Resync:            60 * time.Minute,
-		Predicates:        extension.DefaultPredicates(DefaultAddOptions.IgnoreOperationAnnotation),
+		Predicates:        extension.DefaultPredicates(ctx, mgr, DefaultAddOptions.IgnoreOperationAnnotation),
 		Type:              constants.ExtensionType,
 	})
 }
