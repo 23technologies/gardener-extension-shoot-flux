@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "dependencyDashboard": true,
+  "postUpdateOptions": ["gomodTidy"],
+  "labels": ["kind/upgrade"],
+  "separateMinorPatch": true,
+  "commitMessagePrefix": "\uD83E\uDD16 "
+}
