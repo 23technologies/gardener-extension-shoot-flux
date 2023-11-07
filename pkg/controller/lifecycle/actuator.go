@@ -65,71 +65,78 @@ type actuator struct {
 // ctx context.Context               Execution context
 // ex  *extensionsv1alpha1.Extension Extension struct
 func (a *actuator) Reconcile(ctx context.Context, _ logr.Logger, ex *extensionsv1alpha1.Extension) error {
-
 	// get the shoot and the project namespace
 	extensionNamespace := ex.GetNamespace()
-	shoot, err := extensions.GetShoot(ctx, a.client, extensionNamespace)
-	if err != nil {
-		return err
+	shoot, errHealth := extensions.GetShoot(ctx, a.client, extensionNamespace)
+	if errHealth != nil {
+		return errHealth
 	}
 	projectNamespace := shoot.GetNamespace()
 
 	// fetch the configmap holding the per-project configuration for the current flux installation
 	fluxConfigMap := corev1.ConfigMap{}
-	err = a.clientGardenlet.Get(ctx, kutil.Key(projectNamespace, "flux-config"), &fluxConfigMap)
-	if err != nil {
-		return err
+	errHealth = a.clientGardenlet.Get(ctx, kutil.Key(projectNamespace, "flux-config"), &fluxConfigMap)
+	if errHealth != nil {
+		return errHealth
 	}
 
 	// --------------------- Flux Installation ----------------------------
-	fluxVersion, err := getFluxVersion(fluxConfigMap.Data)
-	if err != nil {
-		a.logger.Error(err, "I was not able to determine a flux release with respect to the version you defined. Check the configmap in the garden cluster for the version.")
-		return err
+	fluxVersion, errHealth := getFluxVersion(fluxConfigMap.Data)
+	if errHealth != nil {
+		a.logger.Error(errHealth, "I was not able to determine a flux release with respect to the version you defined. Check the configmap in the garden cluster for the version.")
+		return errHealth
 	}
 	// Create the resource for the flux installation
-	shootResourceFluxInstall, err := createShootResourceFluxInstall(fluxVersion)
-	if err != nil {
-		return err
+	shootResourceFluxInstall, errHealth := createShootResourceFluxInstall(fluxVersion)
+	if errHealth != nil {
+		return errHealth
 	}
 	// deploy the managed resource for the flux installatation
-	err = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, "shoot-flux", true, shootResourceFluxInstall)
-	if err != nil {
-		return err
+	errHealth = managedresources.CreateForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, "shoot-flux", true, shootResourceFluxInstall)
+	if errHealth != nil {
+		return errHealth
 	}
 
 	tenMinutes := 10 * time.Minute
 	timeoutShootCtx, cancelShootCtx := context.WithTimeout(ctx, tenMinutes)
 	defer cancelShootCtx()
-	err = managedresources.WaitUntilHealthy(timeoutShootCtx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall)
-	if err != nil {
-		a.logger.Error(err, "I was not able to get the manages resource for the flux installation healthy within 10 minutes. I will delete the manged resource now. You can have another try by reconciling your shoot.")
+	errHealth = managedresources.WaitUntilHealthy(timeoutShootCtx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall)
+	if errHealth != nil {
+		// TODO: Fix
+		a.logger.Error(errHealth, "I was not able to get the manages resource for the flux installation healthy within 10 minutes. I will delete the manged resource now. You can have another try by reconciling your shoot.")
 
-		managedresources.SetKeepObjects(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, false)
-		managedresources.DeleteForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall)
+		err := managedresources.SetKeepObjects(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall, false)
+		if err != nil {
+			return err
+		}
+		err = managedresources.DeleteForShoot(ctx, a.client, extensionNamespace, constants.ManagedResourceNameFluxInstall)
+		if err != nil {
+			return err
+		}
 
-		return err
+		return errHealth
 	}
 
 	// Annotate the managed resource for the flux installation with resources.gardener.cloud/ignore=true
 	// This enables the user of the shoot to modify the flux resources, which should be allowed in general,
 	// as the extension would be too restrictive otherwise
-	retry.Until(ctx, time.Second, func(ctx context.Context) (done bool, err error) {
-
+	if err := retry.Until(ctx, time.Second, func(ctx context.Context) (done bool, err error) {
 		if err := setAnnotationMrFluxInstall(ctx, a.client, extensionNamespace); err != nil {
 			return retry.MinorError(err)
 		}
 		return retry.Ok()
-	})
+	}); err != nil {
+		return err
+	}
 
 	// --------------------- Flux Configuration----------------------------
 
 	var shootResourceFluxConfig map[string][]byte
 	if !optionalFieldsAreEmpty(fluxConfigMap.Data) {
 		// create the resources for the flux configuration if optional fields are filled
-		shootResourceFluxConfig, err = a.createShootResourceFluxConfig(ctx, projectNamespace, fluxConfigMap.Data)
-		if err != nil {
-			return err
+		shootResourceFluxConfig, errHealth = a.createShootResourceFluxConfig(ctx, projectNamespace, fluxConfigMap.Data)
+		if errHealth != nil {
+			return errHealth
 		}
 		a.logger.Info("Please add the (public) deploy key to your git repository, you can find it in the secret")
 	}
@@ -181,7 +188,7 @@ func (a *actuator) Delete(ctx context.Context, _ logr.Logger, ex *extensionsv1al
 	return nil
 }
 
-func (a *actuator) ForceDelete(ctx context.Context, _ logr.Logger, _ *extensionsv1alpha1.Extension) error {
+func (a *actuator) ForceDelete(_ context.Context, _ logr.Logger, _ *extensionsv1alpha1.Extension) error {
 	// TODO: Support ForceDelete
 	return nil
 }
@@ -238,7 +245,6 @@ func (a *actuator) InjectScheme(scheme *runtime.Scheme) error {
 }
 
 func createShootResourceFluxInstall(fluxVersion string) (map[string][]byte, error) {
-
 	fluxInstallYaml, err := getFluxInstallYaml(fluxVersion)
 	if err != nil {
 		return nil, err
@@ -252,14 +258,12 @@ func createShootResourceFluxInstall(fluxVersion string) (map[string][]byte, erro
 
 // createShootResourceFluxConfig ...
 func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNamespace string, fluxconfig map[string]string) (map[string][]byte, error) {
-
 	fluxSource := getFluxSourceData(fluxconfig)
 	fluxKustomization := getFluxKustomizationData()
 
 	shootResources := make(map[string][]byte)
 
 	if fluxconfig[constants.ConfigRepositoryType] == "private" {
-
 		var fluxRepoSecretData []byte
 		var err error
 		fluxRepoSecret := corev1.Secret{}
@@ -302,7 +306,10 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 
 			// lastly, also deploy the flux source secret into the projectNamespace in the seed cluster
 			// in order to reuse it, when other shoots are created
-			yaml.Unmarshal(fluxRepoSecretData, &fluxRepoSecret)
+			err = yaml.Unmarshal(fluxRepoSecretData, &fluxRepoSecret)
+			if err != nil {
+				return nil, err
+			}
 			fluxRepoSecret.SetNamespace(projectNamespace)
 			if err := a.clientGardenlet.Create(ctx, &fluxRepoSecret); err != nil {
 				return nil, err
@@ -334,7 +341,6 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 
 // getFluxSourceSecrets ...
 func getFluxSourceData(fluxconfig map[string]string) sourcecontrollerv1beta2.GitRepository {
-
 	gitrepo := sourcecontrollerv1beta2.GitRepository{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "source.toolkit.fluxcd.io/v1beta2",
@@ -361,7 +367,6 @@ func getFluxSourceData(fluxconfig map[string]string) sourcecontrollerv1beta2.Git
 
 // getFluxSourceSecrets ...
 func getFluxKustomizationData() kustomizecontrollerv1beta2.Kustomization {
-
 	ks := kustomizecontrollerv1beta2.Kustomization{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "kustomize.toolkit.fluxcd.io/v1beta2",
@@ -391,7 +396,6 @@ func getFluxKustomizationData() kustomizecontrollerv1beta2.Kustomization {
 
 // getFluxVersion ...
 func getFluxVersion(fluxconfig map[string]string) (string, error) {
-
 	// If the ConfigMap in the garden cluster defines a version, use this version.
 	// Otherwise, simply use the latest version available on Github
 	var fluxVersion string
@@ -414,7 +418,6 @@ func getFluxVersion(fluxconfig map[string]string) (string, error) {
 }
 
 func getFluxInstallYaml(fluxVersion string) ([]byte, error) {
-
 	// download flux install.yaml
 	client := http.Client{
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
@@ -438,7 +441,6 @@ func getFluxInstallYaml(fluxVersion string) ([]byte, error) {
 
 // setAnnotationMrFluxInstall ...
 func setAnnotationMrFluxInstall(ctx context.Context, c client.Client, extensionNamespace string) error {
-
 	mrFluxInstall := resourcesv1alpha1.ManagedResource{}
 	err := c.Get(ctx, kutil.Key(extensionNamespace, constants.ManagedResourceNameFluxInstall), &mrFluxInstall)
 	if err != nil {
@@ -453,15 +455,6 @@ func setAnnotationMrFluxInstall(ctx context.Context, c client.Client, extensionN
 		return err
 	}
 	return err
-}
-
-// existsManagedResource ...
-func existsManagedResource(ctx context.Context, c client.Client, extensionNamespace string, name string) bool {
-	mr := resourcesv1alpha1.ManagedResource{}
-	if err := c.Get(ctx, kutil.Key(extensionNamespace, name), &mr); err != nil {
-		return false
-	}
-	return true
 }
 
 func optionalFieldsAreEmpty(fluxconfig map[string]string) bool {

@@ -5,6 +5,7 @@
 // Package constants defines constants used
 package constants
 
+//nolint:revive
 const (
 	// ExtensionType is the name of the extension type.
 	ExtensionType = "shoot-flux"

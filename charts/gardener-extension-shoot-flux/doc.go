@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-//go:generate sh -c "../../vendor/github.com/gardener/gardener/hack/generate-controller-registration.sh shoot-networking-filter . $(cat ../../VERSION) ../../example/controller-registration.yaml Extension:shoot-networking-filter"
+//go:generate sh -c "../../vendor/github.com/gardener/gardener/hack/generate-controller-registration.sh --pod-security-enforce=privileged shoot-flux . latest ../../example/controller-registration.yaml Extension:shoot-flux"
 
 // Package chart enables go:generate support for generating the correct controller registration.
 package chart

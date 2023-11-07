@@ -8,10 +8,10 @@ package cmd
 import (
 	"os"
 
-	controllercmd "github.com/gardener/gardener/extensions/pkg/controller/cmd"
+	extensionscmdcontroller "github.com/gardener/gardener/extensions/pkg/controller/cmd"
 	extensionshealthcheckcontroller "github.com/gardener/gardener/extensions/pkg/controller/healthcheck"
 	extensionsheartbeatcontroller "github.com/gardener/gardener/extensions/pkg/controller/heartbeat"
-	heartbeatcmd "github.com/gardener/gardener/extensions/pkg/controller/heartbeat/cmd"
+	extensionsheartbeatcmd "github.com/gardener/gardener/extensions/pkg/controller/heartbeat/cmd"
 
 	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/controller/healthcheck"
 	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/controller/lifecycle"
@@ -22,60 +22,60 @@ const ExtensionName = "shoot-flux"
 
 // Options holds configuration passed to the Shoot Flux controller.
 type Options struct {
-	generalOptions     *controllercmd.GeneralOptions
-	restOptions        *controllercmd.RESTOptions
-	managerOptions     *controllercmd.ManagerOptions
-	controllerOptions  *controllercmd.ControllerOptions
-	lifecycleOptions   *controllercmd.ControllerOptions
-	healthOptions      *controllercmd.ControllerOptions
-	controllerSwitches *controllercmd.SwitchOptions
-	reconcileOptions   *controllercmd.ReconcilerOptions
-	heartbeatOptions   *heartbeatcmd.Options
-	optionAggregator   controllercmd.OptionAggregator
+	generalOptions     *extensionscmdcontroller.GeneralOptions
+	restOptions        *extensionscmdcontroller.RESTOptions
+	managerOptions     *extensionscmdcontroller.ManagerOptions
+	controllerOptions  *extensionscmdcontroller.ControllerOptions
+	lifecycleOptions   *extensionscmdcontroller.ControllerOptions
+	healthOptions      *extensionscmdcontroller.ControllerOptions
+	controllerSwitches *extensionscmdcontroller.SwitchOptions
+	reconcileOptions   *extensionscmdcontroller.ReconcilerOptions
+	heartbeatOptions   *extensionsheartbeatcmd.Options
+	optionAggregator   extensionscmdcontroller.OptionAggregator
 }
 
 // NewOptions creates a new Options instance.
 func NewOptions() *Options {
 	options := &Options{
-		generalOptions: &controllercmd.GeneralOptions{},
-		restOptions:    &controllercmd.RESTOptions{},
-		managerOptions: &controllercmd.ManagerOptions{
+		generalOptions: &extensionscmdcontroller.GeneralOptions{},
+		restOptions:    &extensionscmdcontroller.RESTOptions{},
+		managerOptions: &extensionscmdcontroller.ManagerOptions{
 			// These are default values.
 			LeaderElection:          true,
-			LeaderElectionID:        controllercmd.LeaderElectionNameID(ExtensionName),
+			LeaderElectionID:        extensionscmdcontroller.LeaderElectionNameID(ExtensionName),
 			LeaderElectionNamespace: os.Getenv("LEADER_ELECTION_NAMESPACE"),
 		},
-		controllerOptions: &controllercmd.ControllerOptions{
+		controllerOptions: &extensionscmdcontroller.ControllerOptions{
 			// This is a default value.
 			MaxConcurrentReconciles: 5,
 		},
-		lifecycleOptions: &controllercmd.ControllerOptions{
+		lifecycleOptions: &extensionscmdcontroller.ControllerOptions{
 			// This is a default value.
 			MaxConcurrentReconciles: 5,
 		},
-		healthOptions: &controllercmd.ControllerOptions{
+		healthOptions: &extensionscmdcontroller.ControllerOptions{
 			// This is a default value.
 			MaxConcurrentReconciles: 5,
 		},
-		heartbeatOptions: &heartbeatcmd.Options{
+		heartbeatOptions: &extensionsheartbeatcmd.Options{
 			ExtensionName: ExtensionName,
 			Namespace:     os.Getenv("LEADER_ELECTION_NAMESPACE"),
 		},
-		reconcileOptions: &controllercmd.ReconcilerOptions{},
-		controllerSwitches: controllercmd.NewSwitchOptions(
-			controllercmd.Switch(lifecycle.Name, lifecycle.AddToManager),
-			controllercmd.Switch(extensionshealthcheckcontroller.ControllerName, healthcheck.AddToManager),
-			controllercmd.Switch(extensionsheartbeatcontroller.ControllerName, extensionsheartbeatcontroller.AddToManager)),
+		reconcileOptions: &extensionscmdcontroller.ReconcilerOptions{},
+		controllerSwitches: extensionscmdcontroller.NewSwitchOptions(
+			extensionscmdcontroller.Switch(lifecycle.Name, lifecycle.AddToManager),
+			extensionscmdcontroller.Switch(extensionshealthcheckcontroller.ControllerName, healthcheck.AddToManager),
+			extensionscmdcontroller.Switch(extensionsheartbeatcontroller.ControllerName, extensionsheartbeatcontroller.AddToManager)),
 	}
 
-	options.optionAggregator = controllercmd.NewOptionAggregator(
+	options.optionAggregator = extensionscmdcontroller.NewOptionAggregator(
 		options.generalOptions,
 		options.restOptions,
 		options.managerOptions,
 		options.controllerOptions,
-		controllercmd.PrefixOption("lifecycle-", options.lifecycleOptions),
-		controllercmd.PrefixOption("healthcheck-", options.healthOptions),
-		controllercmd.PrefixOption("heartbeat-", options.heartbeatOptions),
+		extensionscmdcontroller.PrefixOption("lifecycle-", options.lifecycleOptions),
+		extensionscmdcontroller.PrefixOption("healthcheck-", options.healthOptions),
+		extensionscmdcontroller.PrefixOption("heartbeat-", options.heartbeatOptions),
 		options.controllerSwitches,
 		options.reconcileOptions,
 	)

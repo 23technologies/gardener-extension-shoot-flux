@@ -9,14 +9,14 @@ import (
 	"fmt"
 
 	"github.com/gardener/gardener/pkg/logger"
-	runtimelog "sigs.k8s.io/controller-runtime/pkg/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/cmd"
 )
 
 func main() {
-	runtimelog.SetLogger(logger.MustNewZapLogger("", ""))
+	logf.SetLogger(logger.MustNewZapLogger("", ""))
 
 	ctx := signals.SetupSignalHandler()
 	if err := cmd.NewServiceControllerCommand().ExecuteContext(ctx); err != nil {

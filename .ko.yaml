@@ -1,0 +1,5 @@
+builds:
+- main: ./cmd/gardener-extension-shoot-flux
+  ldflags:
+  - |
+    {{.Env.LD_FLAGS}}

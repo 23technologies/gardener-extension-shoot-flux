@@ -94,7 +94,6 @@ github.com/gardener/gardener/extensions/pkg/controller/heartbeat/cmd
 github.com/gardener/gardener/extensions/pkg/predicate
 github.com/gardener/gardener/extensions/pkg/util
 github.com/gardener/gardener/hack
-github.com/gardener/gardener/hack/.ci
 github.com/gardener/gardener/hack/api-reference/template
 github.com/gardener/gardener/pkg/api/core
 github.com/gardener/gardener/pkg/api/extensions

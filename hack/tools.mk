@@ -9,7 +9,7 @@ TOOLS_BIN_DIR              := $(TOOLS_DIR)/bin
 KO                         := $(TOOLS_BIN_DIR)/ko
 
 # default tool versions
-KO_VERSION ?= v0.12.0
+KO_VERSION ?= v0.15.0
 
 #########################################
 # Tools                                 #
