@@ -100,8 +100,8 @@ github.com/fluent/fluent-operator/v2 v2.2.0 h1:97CiP6WKOHRM7zY/zCynX187Rg+T8hgx2
 github.com/fluent/fluent-operator/v2 v2.2.0/go.mod h1:v/q0zLEOWP6MKHP7xvrhtASZTwlrk4LcCne/kgPQ7J0=
 github.com/fluxcd/flux2 v0.41.0 h1:hcnNm7/mPUqUaw+jlWqYjwKwOY5ZlqzM0AdpmPhwYb8=
 github.com/fluxcd/flux2 v0.41.0/go.mod h1:aNGOwgeVt5uGOhNhziF4fH54x9fuN9+YNIA2mSqSFVU=
-github.com/fluxcd/kustomize-controller/api v0.35.0 h1:G3Bk56GNGKM6R97tx3tJfwYk4N/ZS3Kv/Qqscyv0hd0=
-github.com/fluxcd/kustomize-controller/api v0.35.0/go.mod h1:hrxVOUss0om4mg+ykMYtH4CgLuM2RReSPf0hG9e0b18=
+github.com/fluxcd/kustomize-controller/api v0.35.1 h1:l7AndDJXVLZcCHmEIRXU9ksWInlP6SjFtHQH1SC7++c=
+github.com/fluxcd/kustomize-controller/api v0.35.1/go.mod h1:hrxVOUss0om4mg+ykMYtH4CgLuM2RReSPf0hG9e0b18=
 github.com/fluxcd/pkg/apis/acl v0.1.0 h1:EoAl377hDQYL3WqanWCdifauXqXbMyFuK82NnX6pH4Q=
 github.com/fluxcd/pkg/apis/acl v0.1.0/go.mod h1:zfEZzz169Oap034EsDhmCAGgnWlcWmIObZjYMusoXS8=
 github.com/fluxcd/pkg/apis/kustomize v1.1.1 h1:MSGn4z0R9PptmoPFHnx2nEZ8Jtl1sKfw0cuDQY2HYwM=

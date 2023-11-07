@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/ahmetb/gen-crd-api-reference-docs v0.3.0
 	github.com/fluxcd/flux2 v0.41.0
-	github.com/fluxcd/kustomize-controller/api v0.35.0
+	github.com/fluxcd/kustomize-controller/api v0.35.1
 	github.com/fluxcd/pkg/apis/meta v0.19.1
 	github.com/fluxcd/source-controller/api v0.36.0
 	github.com/gardener/gardener v1.83.0
