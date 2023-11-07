@@ -4,10 +4,10 @@
 
 ---
 {{- if .Values.vpa.enabled}}
-apiVersion: "autoscaling.k8s.io/v1beta2"
+apiVersion: "autoscaling.k8s.io/v1"
 kind: VerticalPodAutoscaler
 metadata:
-  name: gardener-extension-{{ .Values.serviceName }}
+  name: {{ include "name" . }}-vpa
   namespace: {{ .Release.Namespace }}
 spec:
   {{- if .Values.vpa.resourcePolicy }}
@@ -15,13 +15,12 @@ spec:
     containerPolicies:
     - containerName: '*'
       minAllowed:
-        cpu: {{ required ".Values.vpa.resourcePolicy.minAllowed.cpu is required" .Values.vpa.resourcePolicy.minAllowed.cpu }}
         memory: {{ required ".Values.vpa.resourcePolicy.minAllowed.memory is required" .Values.vpa.resourcePolicy.minAllowed.memory }}
   {{- end }}
   targetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: gardener-extension-{{ .Values.serviceName }}
+    name: {{ include "name" . }}
   updatePolicy:
     updateMode: {{ .Values.vpa.updatePolicy.updateMode }}
 {{- end }}

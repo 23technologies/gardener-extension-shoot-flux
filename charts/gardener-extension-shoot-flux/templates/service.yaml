@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "name" . }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    networking.resources.gardener.cloud/from-all-seed-scrape-targets-allowed-ports: '[{"port":{{ .Values.metricsPort }},"protocol":"TCP"}]'
+    networking.resources.gardener.cloud/namespace-selectors: '[{"matchLabels":{"kubernetes.io/metadata.name":"garden"}}]'
+    networking.resources.gardener.cloud/pod-label-selector-namespace-alias: extensions
+{{-  if .Values.ignoreResources }}
+    resources.gardener.cloud/ignore: "true"
+{{- end }}
+  labels:
+{{ include "labels" . | indent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+{{ include "labels" . | indent 6 }}
+  ports:
+  - name: metrics
+    port: {{ .Values.metricsPort }}
+    targetPort: {{ .Values.metricsPort }}
+    protocol: TCP

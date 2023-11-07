@@ -4,18 +4,16 @@
 
 ---
 {{- if gt (int .Values.replicaCount) 1 }}
-apiVersion: policy/v1beta1
+apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: gardener-extension-{{ .Values.serviceName }}
+  name: {{ include "name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/name: gardener-extension-{{ .Values.serviceName }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+{{ include "labels" . | indent 4 }}
 spec:
   maxUnavailable: {{ sub (int .Values.replicaCount) 1 }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: gardener-extension-{{ .Values.serviceName }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
+{{ include "labels" . | indent 6 }}
 {{- end }}

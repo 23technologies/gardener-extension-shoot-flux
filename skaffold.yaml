@@ -1,0 +1,21 @@
+---
+apiVersion: skaffold/v4beta3
+kind: Config
+metadata:
+  name: extension
+build:
+  artifacts:
+  - image: ghcr.io/stackitcloud/gardener-extension-shoot-flux
+    ko:
+      main: ./cmd/gardener-extension-shoot-flux
+resourceSelector:
+  allow:
+  # instruct skaffold to inject the built image reference into the image field in our ControllerDeployment
+  - groupKind: ControllerDeployment.core.gardener.cloud
+    image: [".*"]
+manifests:
+  kustomize:
+    paths:
+    - ./deploy/extension/local
+deploy:
+  kubectl: {}

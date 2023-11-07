@@ -9,7 +9,7 @@ REPO_ROOT                   := $(shell dirname $(realpath $(lastword $(MAKEFILE_
 HACK_DIR                    := $(REPO_ROOT)/hack
 VERSION                     := $(shell git describe --tag --always --dirty)
 TAG							:= $(VERSION)
-LD_FLAGS                    := -w $(shell EFFECTIVE_VERSION=$(VERSION) $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/get-build-ld-flags.sh k8s.io/component-base $(REPO_ROOT)/go.mod $(EXTENSION_PREFIX)-$(NAME))
+LD_FLAGS                    := -w $(shell EFFECTIVE_VERSION=$(VERSION) $(REPO_ROOT)/vendor/github.com/gardener/gardener/hack/get-build-ld-flags.sh k8s.io/component-base $(REPO_ROOT)/go.mod $(EXTENSION_PREFIX)-$(NAME) 2>&1 | grep -v .dockerignore)
 LEADER_ELECTION             := false
 IGNORE_OPERATION_ANNOTATION := false
 
@@ -103,3 +103,21 @@ verify: check format test
 
 .PHONY: verify-extended
 verify-extended: check-generate check format test
+
+#####################################################################
+# Rules for local environment                                       #
+#####################################################################
+
+# speed-up skaffold deployments by building all images concurrently
+extension-%: export SKAFFOLD_BUILD_CONCURRENCY = 0
+extension-%: export SKAFFOLD_DEFAULT_REPO = localhost:5001
+extension-%: export SKAFFOLD_PUSH = true
+# use static label for skaffold to prevent rolling all gardener components on every `skaffold` invocation
+extension-%: export SKAFFOLD_LABEL = skaffold.dev/run-id=shoot-flux
+
+extension-up: $(SKAFFOLD)
+	$(SKAFFOLD) run
+extension-dev: $(SKAFFOLD)
+	$(SKAFFOLD) dev --cleanup=false --trigger=manual
+extension-down: $(SKAFFOLD)
+	$(SKAFFOLD) delete

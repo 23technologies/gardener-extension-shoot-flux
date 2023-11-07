@@ -3,14 +3,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ---
-image:
-  repository: ghcr.io/23technologies/gardener-extension-shoot-flux
-  tag: latest
-  pullPolicy: IfNotPresent
+image: ghcr.io/stackitcloud/gardener-extension-shoot-flux:latest
+imagePullPolicy: IfNotPresent
 
-serviceName: shoot-flux
 replicaCount: 1
-ignoreResources: false
+
+logLevel: info
+logFormat: json
+
+resources: {}
+vpa:
+  enabled: true
+  resourcePolicy:
+    minAllowed:
+      memory: 64Mi
+  updatePolicy:
+    updateMode: "Auto"
 
 controllers:
   lifecycle:
@@ -21,14 +29,36 @@ controllers:
     renewIntervalSeconds: 30
   ignoreOperationAnnotation: false
 
-vpa:
-  enabled: true
-  resourcePolicy:
-    minAllowed:
-      cpu: 30m
-      memory: 64Mi
-  updatePolicy:
-    updateMode: "Auto"
+disableControllers: []
+ignoreResources: false
+
+# imageVectorOverwrite: |
+#   images:
+#   - name: pause-container
+#     sourceRepository: github.com/kubernetes/kubernetes/blob/master/build/pause/Dockerfile
+#     repository: gcr.io/google_containers/pause-amd64
+#     tag: "3.0"
+#     version: 1.11.x
+#   - name: pause-container
+#     sourceRepository: github.com/kubernetes/kubernetes/blob/master/build/pause/Dockerfile
+#     repository: gcr.io/google_containers/pause-amd64
+#     tag: "3.1"
+#     version: ">= 1.12"
+#   ...
+
+metricsPort: 8080
+healthPort: 8081
+
+## settings for metrics, e.g. scraping by seed-prometheus
+##
+metrics:
+  ## enable metrics scraping
+  ##
+  enableScraping: true
 
 gardener:
   version: ""
+  gardenlet:
+    featureGates: {}
+  seed:
+    provider: local

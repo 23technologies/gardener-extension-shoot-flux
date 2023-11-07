@@ -44,6 +44,8 @@ func NewOptions() *Options {
 			LeaderElection:          true,
 			LeaderElectionID:        extensionscmdcontroller.LeaderElectionNameID(ExtensionName),
 			LeaderElectionNamespace: os.Getenv("LEADER_ELECTION_NAMESPACE"),
+			MetricsBindAddress:      ":8080",
+			HealthBindAddress:       ":8081",
 		},
 		controllerOptions: &extensionscmdcontroller.ControllerOptions{
 			// This is a default value.
