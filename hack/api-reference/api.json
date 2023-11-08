@@ -1,0 +1,26 @@
+{
+    "hideMemberFields": [
+        "TypeMeta"
+    ],
+    "hideTypePatterns": [
+        "ParseError$",
+        "List$"
+    ],
+    "externalPackages": [
+        {
+            "typeMatchPrefix": "^k8s\\.io/(api|apimachinery/pkg/apis)/",
+            "docsURLTemplate": "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#{{lower .TypeIdentifier}}-{{arrIndex .PackageSegments -1}}-{{arrIndex .PackageSegments -2}}"
+        },
+        {
+            "typeMatchPrefix": "^github\\.com/fluxcd/(\\w+)-controller/api",
+            "docsURLTemplate": "{{ $component := arrIndex .PackageSegments -3 }}{{ if eq $component \"source-controller\" }}{{ $component = \"source\" }}{{ end }}{{ if eq $component \"kustomize-controller\" }}{{ $component = \"kustomize\" }}{{ end }}https://fluxcd.io/flux/components/{{$component}}/api/v1/#{{$component}}.toolkit.fluxcd.io/{{arrIndex .PackageSegments -1}}.{{.TypeIdentifier}}"
+        }
+    ],
+    "typeDisplayNamePrefixOverrides": {
+        "k8s.io/api/": "Kubernetes ",
+        "k8s.io/apimachinery/pkg/apis/": "Kubernetes ",
+        "github.com/fluxcd/source-controller/api/": "source.toolkit.fluxcd.io/",
+        "github.com/fluxcd/kustomize-controller/api/": "kustomize.toolkit.fluxcd.io/"
+    },
+    "markdownDisabled": false
+}

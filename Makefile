@@ -81,9 +81,11 @@ check: $(GO_ADD_LICENSE) $(GOIMPORTS) $(GOLANGCI_LINT) $(HELM) $(YQ)
 	@bash $(HACK_DIRECTORY)/check-charts.sh ./charts
 
 .PHONY: generate
-generate:
+generate: $(GEN_CRD_API_REFERENCE_DOCS)
 	@bash $(HACK_DIRECTORY)/generate-controller-registration.sh --pod-security-enforce=privileged shoot-flux charts/gardener-extension-shoot-flux latest deploy/extension/base/controller-registration.yaml Extension:shoot-flux
 	@bash $(HACK_DIRECTORY)/generate-sequential.sh ./cmd/... ./pkg/...
+	@hack/update-codegen.sh
+	@gen-crd-api-reference-docs -api-dir ./pkg/apis -config ./hack/api-reference/api.json -template-dir $(HACK_DIRECTORY)/api-reference/template -out-file ./hack/api-reference/api.md
 
 .PHONY: format
 format: $(GOIMPORTS) $(GOIMPORTSREVISER)

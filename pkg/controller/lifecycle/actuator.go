@@ -14,16 +14,16 @@ import (
 	"time"
 
 	"github.com/fluxcd/flux2/pkg/manifestgen/sourcesecret"
-	kustomizecontrollerv1beta2 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	kustomizev1beta2 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/meta"
-	sourcecontrollerv1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	resourcesv1alpha1 "github.com/gardener/gardener/pkg/apis/resources/v1alpha1"
 	gardenclient "github.com/gardener/gardener/pkg/client/kubernetes"
 	"github.com/gardener/gardener/pkg/extensions"
 	kutil "github.com/gardener/gardener/pkg/utils/kubernetes"
-	managedresources "github.com/gardener/gardener/pkg/utils/managedresources"
+	"github.com/gardener/gardener/pkg/utils/managedresources"
 	"github.com/gardener/gardener/pkg/utils/retry"
 	"github.com/go-logr/logr"
 	"github.com/google/go-github/v44/github"
@@ -340,8 +340,8 @@ func (a *actuator) createShootResourceFluxConfig(ctx context.Context, projectNam
 }
 
 // getFluxSourceSecrets ...
-func getFluxSourceData(fluxconfig map[string]string) sourcecontrollerv1beta2.GitRepository {
-	gitrepo := sourcecontrollerv1beta2.GitRepository{
+func getFluxSourceData(fluxconfig map[string]string) sourcev1beta2.GitRepository {
+	gitrepo := sourcev1beta2.GitRepository{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "source.toolkit.fluxcd.io/v1beta2",
 			Kind:       "GitRepository",
@@ -350,24 +350,24 @@ func getFluxSourceData(fluxconfig map[string]string) sourcecontrollerv1beta2.Git
 			Name:      constants.FluxGitRepositoryName,
 			Namespace: "flux-system",
 		},
-		Spec: sourcecontrollerv1beta2.GitRepositorySpec{
+		Spec: sourcev1beta2.GitRepositorySpec{
 			Interval: metav1.Duration{
 				Duration: time.Second * 30,
 			},
-			Reference: &sourcecontrollerv1beta2.GitRepositoryRef{
+			Reference: &sourcev1beta2.GitRepositoryRef{
 				Branch: fluxconfig[constants.ConfigRepositoryBranch],
 			},
 			URL: fluxconfig[constants.ConfigRepositoryURL],
 		},
-		Status: sourcecontrollerv1beta2.GitRepositoryStatus{},
+		Status: sourcev1beta2.GitRepositoryStatus{},
 	}
 
 	return gitrepo
 }
 
 // getFluxSourceSecrets ...
-func getFluxKustomizationData() kustomizecontrollerv1beta2.Kustomization {
-	ks := kustomizecontrollerv1beta2.Kustomization{
+func getFluxKustomizationData() kustomizev1beta2.Kustomization {
+	ks := kustomizev1beta2.Kustomization{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "kustomize.toolkit.fluxcd.io/v1beta2",
 			Kind:       "Kustomization",
@@ -376,19 +376,19 @@ func getFluxKustomizationData() kustomizecontrollerv1beta2.Kustomization {
 			Name:      constants.FluxMainKustomizationName,
 			Namespace: "flux-system",
 		},
-		Spec: kustomizecontrollerv1beta2.KustomizationSpec{
+		Spec: kustomizev1beta2.KustomizationSpec{
 			Interval: metav1.Duration{
 				Duration: time.Minute * 5,
 			},
 			Path:  "./",
 			Prune: true,
-			SourceRef: kustomizecontrollerv1beta2.CrossNamespaceSourceReference{
+			SourceRef: kustomizev1beta2.CrossNamespaceSourceReference{
 				Kind: "GitRepository",
 				Name: constants.FluxGitRepositoryName,
 			},
 			TargetNamespace: "default",
 		},
-		Status: kustomizecontrollerv1beta2.KustomizationStatus{},
+		Status: kustomizev1beta2.KustomizationStatus{},
 	}
 
 	return ks

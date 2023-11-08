@@ -31,6 +31,7 @@ issues:
   - "\".*\" imported but not used"
   # allow non-capitalized messages if they start with technical terms
   - "structured logging message should be capitalized: \"garden(er-apiserver|er-controller-manager|er-admission-controller|er-operator|er-resource-manager|let)"
+  - "exported function SetDefaults_.* should have comment or be unexported"
   exclude-rules:
   - linters:
     - staticcheck
@@ -47,6 +48,8 @@ linters-settings:
     - name: exported
   importas:
     alias:
+      - pkg: github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis/(\w+)/(v[\w\d]+)
+        alias: $1$2
       # External imported packages
       - pkg: k8s.io/api/(\w+)/(v[\w\d]+)
         alias: $1$2
@@ -100,3 +103,6 @@ linters-settings:
         alias: $1$2$3
       - pkg: github.com/gardener/gardener/pkg/chartrenderer
         alias: chartrenderer
+      # Flux APIs
+      - pkg: github.com/fluxcd/(\w+)-controller/api/([\w\d]+)
+        alias: $1$2

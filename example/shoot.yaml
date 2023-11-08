@@ -1,0 +1,67 @@
+apiVersion: core.gardener.cloud/v1beta1
+kind: Shoot
+metadata:
+  name: flux
+  namespace: garden-local
+  annotations:
+    shoot.gardener.cloud/infrastructure-cleanup-wait-period-seconds: "0"
+    shoot.gardener.cloud/cloud-config-execution-max-delay-seconds: "0"
+spec:
+  extensions:
+  - type: shoot-flux
+    providerConfig:
+      apiVersion: flux.extensions.gardener.cloud/v1alpha1
+      kind: FluxConfig
+      flux:
+        version: v2.1.2 # defaults to some current version, not latest!
+        registry: ghcr.io/fluxcd
+        namespace: flux-system
+      source:
+        template:
+          apiVersion: source.toolkit.fluxcd.io/v1
+          kind: GitRepository
+          spec:
+            ref:
+              branch: main
+            # secretRef:
+            #  name: flux-system
+            url: https://github.com/fluxcd/flux2-kustomize-helm-example
+        # secretResourceName: flux-ssh-secret
+      kustomization:
+        template:
+          apiVersion: kustomize.toolkit.fluxcd.io/v1
+          kind: Kustomization
+          spec:
+            path: clusters/production/flux-system
+  # resources:
+  # - name: flux-ssh-secret
+  #   resourceRef:
+  #     apiVersion: v1
+  #     kind: Secret
+  #     name: my-project-secret
+
+  cloudProfileName: local
+  secretBindingName: local # dummy, doesn't contain any credentials
+  region: local
+  networking:
+    type: calico
+  provider:
+    type: local
+    workers:
+    - name: local
+      machine:
+        type: local
+      cri:
+        name: containerd
+      minimum: 1
+      maximum: 2
+      maxSurge: 1
+      maxUnavailable: 0
+  kubernetes:
+    kubelet:
+      seccompDefault: true
+      serializeImagePulls: false
+      registryPullQPS: 10
+      registryBurst: 20
+      protectKernelDefaults: true
+      streamingConnectionIdleTimeout: 5m
