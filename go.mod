@@ -24,11 +24,11 @@ require (
 )
 
 replace (
-	k8s.io/api => k8s.io/api v0.28.3
-	k8s.io/apimachinery => k8s.io/apimachinery v0.28.3
-	k8s.io/client-go => k8s.io/client-go v0.28.3
-	k8s.io/code-generator => k8s.io/code-generator v0.28.3
-	k8s.io/component-base => k8s.io/component-base v0.28.3
+	k8s.io/api => k8s.io/api v0.28.7
+	k8s.io/apimachinery => k8s.io/apimachinery v0.28.7
+	k8s.io/client-go => k8s.io/client-go v0.28.7
+	k8s.io/code-generator => k8s.io/code-generator v0.28.7
+	k8s.io/component-base => k8s.io/component-base v0.28.7
 )
 
 require (
