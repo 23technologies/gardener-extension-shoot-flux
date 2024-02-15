@@ -36,7 +36,7 @@
         "go"
       ],
       "matchPackagePrefixes": [
-        "github.com/fluxcd/flux2"
+        "github.com/fluxcd"
       ],
       "prBodyNotes": [
         ":warning: This PR updates an API docstring, so you have to run `make generate` locally."
