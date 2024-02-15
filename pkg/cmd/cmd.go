@@ -9,19 +9,24 @@ import (
 	"context"
 	"fmt"
 
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	extensionscontroller "github.com/gardener/gardener/extensions/pkg/controller"
 	"github.com/gardener/gardener/extensions/pkg/controller/heartbeat"
 	"github.com/gardener/gardener/extensions/pkg/util"
 	gardenerhealthz "github.com/gardener/gardener/pkg/healthz"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	componentbaseconfig "k8s.io/component-base/config"
 	"k8s.io/component-base/version/verflag"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/controller/lifecycle"
+	fluxv1alpha1 "github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis/flux/v1alpha1"
+	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/controller/extension"
 )
 
 // NewServiceControllerCommand creates a new command that is used to start the shoot flux controller
@@ -69,17 +74,24 @@ func (o *Options) run(ctx context.Context) error {
 		},
 	}
 
+	mgrOpts.Scheme = runtime.NewScheme()
+	if err := (&runtime.SchemeBuilder{
+		extensionscontroller.AddToScheme,
+		fluxv1alpha1.AddToScheme,
+		apiextensionsv1.AddToScheme,
+		sourcev1.AddToScheme,
+		kustomizev1.AddToScheme,
+	}).AddToScheme(mgrOpts.Scheme); err != nil {
+		return fmt.Errorf("could not update manager scheme: %s", err)
+	}
+
 	mgr, err := manager.New(o.restOptions.Completed().Config, mgrOpts)
 	if err != nil {
 		return fmt.Errorf("could not instantiate controller-manager: %s", err)
 	}
 
-	if err := extensionscontroller.AddToScheme(mgr.GetScheme()); err != nil {
-		return fmt.Errorf("could not update manager scheme: %s", err)
-	}
-
-	o.controllerOptions.Completed().Apply(&lifecycle.DefaultAddOptions.ControllerOptions)
-	o.lifecycleOptions.Completed().Apply(&lifecycle.DefaultAddOptions.ControllerOptions)
+	o.controllerOptions.Completed().Apply(&extension.DefaultAddOptions.Controller)
+	o.extensionOptions.Completed().Apply(&extension.DefaultAddOptions.Controller)
 	o.heartbeatOptions.Completed().Apply(&heartbeat.DefaultAddOptions)
 
 	if err := mgr.AddReadyzCheck("informer-sync", gardenerhealthz.NewCacheSyncHealthz(mgr.GetCache())); err != nil {

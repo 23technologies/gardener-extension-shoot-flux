@@ -1,11 +1,46 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
+    "config:recommended"
   ],
   "dependencyDashboard": true,
-  "postUpdateOptions": ["gomodTidy"],
-  "labels": ["kind/upgrade"],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "labels": [
+    "kind/upgrade"
+  ],
   "separateMinorPatch": true,
-  "commitMessagePrefix": "\uD83E\uDD16 "
+  "commitMessagePrefix": "\uD83E\uDD16 ",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "^pkg/apis/flux/.*\\.go$"
+      ],
+      "matchStrings": [
+        "defaultFluxVersion = \"(?<currentValue>.*?)\"\\n",
+        // this matches any comment block that has 'renovate:flux-version', then
+        // any number of empty or comment lines, and then a substring that
+        // matches e.g. "Defaults to "v1.0.0".
+        "renovate:flux-version\\n(?:\\s*(?:\\/\\/).*\n)*.*Defaults to \"(?<currentValue>.*?)\""
+      ],
+      "depNameTemplate": "github.com/fluxcd/flux2/v2",
+      "datasourceTemplate": "go"
+    }
+  ],
+  "packageRules": [
+    {
+      "groupName": "fluxcd",
+      "matchDatasources": [
+        "go"
+      ],
+      "matchPackagePrefixes": [
+        "github.com/fluxcd/flux2"
+      ],
+      "prBodyNotes": [
+        ":warning: This PR updates an API docstring, so you have to run `make generate` locally."
+      ]
+    }
+  ]
 }

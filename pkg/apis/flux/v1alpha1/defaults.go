@@ -11,6 +11,15 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+const (
+	defaultFluxNamespace     = "flux-system"
+	defaultGitRepositoryName = "flux-system"
+
+	// defaultFluxVersion is maintained by renovate via a customManager. Don't
+	// change this without also updating the renovate config.
+	defaultFluxVersion = "v2.1.2"
+)
+
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
 	return RegisterDefaults(scheme)
 }
@@ -19,13 +28,30 @@ func SetDefaults_FluxConfig(obj *FluxConfig) {
 	if obj.Flux == nil {
 		obj.Flux = &FluxInstallation{}
 	}
+
+	if sourceName := obj.Source.Template.Name; obj.Kustomization.Template.Spec.SourceRef.Name == "" && sourceName != "" {
+		obj.Kustomization.Template.Spec.SourceRef.Name = sourceName
+	}
+	if sourceNamespace := obj.Source.Template.Namespace; obj.Kustomization.Template.Spec.SourceRef.Namespace == "" && sourceNamespace != "" {
+		obj.Kustomization.Template.Spec.SourceRef.Namespace = sourceNamespace
+	}
+
+	if namespace := ptr.Deref(obj.Flux.Namespace, ""); namespace != "" {
+		if obj.Source.Template.Namespace == "" {
+			obj.Source.Template.Namespace = namespace
+		}
+		if obj.Kustomization.Template.Namespace == "" {
+			obj.Kustomization.Template.Namespace = namespace
+		}
+		if obj.Kustomization.Template.Spec.SourceRef.Namespace == "" {
+			obj.Kustomization.Template.Spec.SourceRef.Namespace = namespace
+		}
+	}
 }
 
 func SetDefaults_FluxInstallation(obj *FluxInstallation) {
 	if obj.Version == nil {
-		// TODO: add renovate to upgrade this in lockstep with go modules update
-		//  If you do automate this, also automate updating the API doc string ;)
-		obj.Version = ptr.To("v2.1.2")
+		obj.Version = ptr.To(defaultFluxVersion)
 	}
 
 	if obj.Registry == nil {
@@ -33,7 +59,7 @@ func SetDefaults_FluxInstallation(obj *FluxInstallation) {
 	}
 
 	if obj.Namespace == nil {
-		obj.Namespace = ptr.To("flux-system")
+		obj.Namespace = ptr.To(defaultFluxNamespace)
 	}
 }
 
@@ -55,11 +81,11 @@ func SetDefaults_Kustomization(obj *Kustomization) {
 
 func SetDefaults_Flux_GitRepository(obj *sourcev1.GitRepository) {
 	if obj.Name == "" {
-		obj.Name = "flux-system"
+		obj.Name = defaultGitRepositoryName
 	}
 
 	if obj.Namespace == "" {
-		obj.Namespace = "flux-system"
+		obj.Namespace = defaultFluxNamespace
 	}
 
 	if obj.Spec.Interval.Duration == 0 {
@@ -73,7 +99,17 @@ func SetDefaults_Flux_Kustomization(obj *kustomizev1.Kustomization) {
 	}
 
 	if obj.Namespace == "" {
-		obj.Namespace = "flux-system"
+		obj.Namespace = defaultFluxNamespace
+	}
+
+	if obj.Spec.SourceRef.Kind == "" {
+		obj.Spec.SourceRef.Kind = sourcev1.GitRepositoryKind
+	}
+	if obj.Spec.SourceRef.Name == "" {
+		obj.Spec.SourceRef.Name = defaultGitRepositoryName
+	}
+	if obj.Spec.SourceRef.Namespace == "" {
+		obj.Spec.SourceRef.Namespace = defaultFluxNamespace
 	}
 
 	if obj.Spec.Interval.Duration == 0 {

@@ -46,9 +46,7 @@ var _ = Describe("CloudProfileConfig validation", func() {
 				},
 			}
 
-			shoot = &gardencorev1beta1.Shoot{
-				// TODO
-			}
+			shoot = &gardencorev1beta1.Shoot{}
 		})
 
 		It("should allow basic valid object", func() {

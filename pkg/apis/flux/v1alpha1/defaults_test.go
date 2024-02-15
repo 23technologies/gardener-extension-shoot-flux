@@ -53,7 +53,7 @@ var _ = Describe("FluxConfig defaulting", func() {
 			SetObjectDefaults_FluxConfig(obj)
 
 			Expect(obj.Flux).To(DeepEqual(&FluxInstallation{
-				Version:   ptr.To("v2.1.2"),
+				Version:   ptr.To(defaultFluxVersion),
 				Registry:  ptr.To("ghcr.io/fluxcd"),
 				Namespace: ptr.To("flux-system"),
 			}))

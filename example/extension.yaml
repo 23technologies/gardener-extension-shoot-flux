@@ -1,0 +1,31 @@
+apiVersion: extensions.gardener.cloud/v1alpha1
+kind: Extension
+metadata:
+  name: shoot-flux
+  namespace: shoot--local--flux
+spec:
+  type: shoot-flux
+  providerConfig:
+    apiVersion: flux.extensions.gardener.cloud/v1alpha1
+    kind: FluxConfig
+    flux:
+      version: v2.1.2 # defaults to some current version, not latest!
+      registry: ghcr.io/fluxcd
+      namespace: flux-system
+    source:
+      template:
+        apiVersion: source.toolkit.fluxcd.io/v1
+        kind: GitRepository
+        spec:
+          ref:
+            branch: main
+          # secretRef:
+          #  name: flux-system
+          url: https://github.com/fluxcd/flux2-kustomize-helm-example
+      # secretResourceName: flux-ssh-secret
+    kustomization:
+      template:
+        apiVersion: kustomize.toolkit.fluxcd.io/v1
+        kind: Kustomization
+        spec:
+          path: clusters/production/flux-system

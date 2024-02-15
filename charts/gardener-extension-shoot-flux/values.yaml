@@ -21,7 +21,7 @@ vpa:
     updateMode: "Auto"
 
 controllers:
-  lifecycle:
+  extension:
     concurrentSyncs: 5
   healthcheck:
     concurrentSyncs: 5

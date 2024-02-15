@@ -13,8 +13,8 @@ import (
 	extensionsheartbeatcontroller "github.com/gardener/gardener/extensions/pkg/controller/heartbeat"
 	extensionsheartbeatcmd "github.com/gardener/gardener/extensions/pkg/controller/heartbeat/cmd"
 
+	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/controller/extension"
 	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/controller/healthcheck"
-	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/controller/lifecycle"
 )
 
 // ExtensionName is the name of the extension.
@@ -26,7 +26,7 @@ type Options struct {
 	restOptions        *extensionscmdcontroller.RESTOptions
 	managerOptions     *extensionscmdcontroller.ManagerOptions
 	controllerOptions  *extensionscmdcontroller.ControllerOptions
-	lifecycleOptions   *extensionscmdcontroller.ControllerOptions
+	extensionOptions   *extensionscmdcontroller.ControllerOptions
 	healthOptions      *extensionscmdcontroller.ControllerOptions
 	controllerSwitches *extensionscmdcontroller.SwitchOptions
 	reconcileOptions   *extensionscmdcontroller.ReconcilerOptions
@@ -51,7 +51,7 @@ func NewOptions() *Options {
 			// This is a default value.
 			MaxConcurrentReconciles: 5,
 		},
-		lifecycleOptions: &extensionscmdcontroller.ControllerOptions{
+		extensionOptions: &extensionscmdcontroller.ControllerOptions{
 			// This is a default value.
 			MaxConcurrentReconciles: 5,
 		},
@@ -65,9 +65,10 @@ func NewOptions() *Options {
 		},
 		reconcileOptions: &extensionscmdcontroller.ReconcilerOptions{},
 		controllerSwitches: extensionscmdcontroller.NewSwitchOptions(
-			extensionscmdcontroller.Switch(lifecycle.Name, lifecycle.AddToManager),
+			extensionscmdcontroller.Switch(extension.ControllerName, extension.AddToManager),
 			extensionscmdcontroller.Switch(extensionshealthcheckcontroller.ControllerName, healthcheck.AddToManager),
-			extensionscmdcontroller.Switch(extensionsheartbeatcontroller.ControllerName, extensionsheartbeatcontroller.AddToManager)),
+			extensionscmdcontroller.Switch(extensionsheartbeatcontroller.ControllerName, extensionsheartbeatcontroller.AddToManager),
+		),
 	}
 
 	options.optionAggregator = extensionscmdcontroller.NewOptionAggregator(
@@ -75,7 +76,7 @@ func NewOptions() *Options {
 		options.restOptions,
 		options.managerOptions,
 		options.controllerOptions,
-		extensionscmdcontroller.PrefixOption("lifecycle-", options.lifecycleOptions),
+		extensionscmdcontroller.PrefixOption("extension-", options.extensionOptions),
 		extensionscmdcontroller.PrefixOption("healthcheck-", options.healthOptions),
 		extensionscmdcontroller.PrefixOption("heartbeat-", options.heartbeatOptions),
 		options.controllerSwitches,
