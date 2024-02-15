@@ -23,6 +23,14 @@ require (
 	sigs.k8s.io/controller-runtime v0.16.4
 )
 
+replace (
+	k8s.io/api => k8s.io/api v0.28.3
+	k8s.io/apimachinery => k8s.io/apimachinery v0.28.3
+	k8s.io/client-go => k8s.io/client-go v0.28.3
+	k8s.io/code-generator => k8s.io/code-generator v0.28.3
+	k8s.io/component-base => k8s.io/component-base v0.28.3
+)
+
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -141,13 +149,4 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.15.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
-)
-
-replace (
-	k8s.io/api => k8s.io/api v0.28.3
-	k8s.io/apimachinery => k8s.io/apimachinery v0.28.3
-	k8s.io/client-go => k8s.io/client-go v0.28.3
-	k8s.io/code-generator => k8s.io/code-generator v0.28.3
-	k8s.io/component-base => k8s.io/component-base v0.28.3
-	k8s.io/helm => k8s.io/helm v2.17.0+incompatible
 )
