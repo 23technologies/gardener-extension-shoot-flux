@@ -25,13 +25,12 @@ rm -f ${GOPATH}/bin/*-gen
 flux_group() {
   echo "Generating flux API group"
 
-  bash "${CODE_GENERATOR_DIR}"/generate-internal-groups.sh \
-      deepcopy,defaulter \
-      github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis \
-      github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis \
-      github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis \
-      "flux:v1alpha1" \
-      -h "${SCRIPT_DIR}/LICENSE_BOILERPLATE.txt"
+  source "${CODE_GENERATOR_DIR}"/kube_codegen.sh
+
+  kube::codegen::gen_helpers \
+      --input-pkg-root github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis \
+      --output-base "${SCRIPT_DIR}/../../../.." \
+      --boilerplate "${SCRIPT_DIR}/boilerplate.go.txt"
 }
 
 flux_group
