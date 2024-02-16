@@ -18,6 +18,7 @@ import (
 	v1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/client/kubernetes"
+	"github.com/gardener/gardener/pkg/extensions"
 	"github.com/gardener/gardener/pkg/utils/kubernetes/health"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -82,11 +83,11 @@ func (a *actuator) Reconcile(ctx context.Context, log logr.Logger, ext *extensio
 		return fmt.Errorf("error installing Flux: %w", err)
 	}
 
-	if err := BootstrapSource(ctx, log, a.client, shootClient, ext, cluster, config); err != nil {
+	if err := BootstrapSource(ctx, log, a.client, shootClient, ext, cluster, &config.Source); err != nil {
 		return fmt.Errorf("error bootstrappping Flux GitRepository: %w", err)
 	}
 
-	if err := BootstrapKustomization(ctx, log, shootClient, config); err != nil {
+	if err := BootstrapKustomization(ctx, log, shootClient, &config.Kustomization); err != nil {
 		return fmt.Errorf("error bootstrappping Flux Kustomization: %w", err)
 	}
 
@@ -170,10 +171,22 @@ func SetFluxBootstrapped(ctx context.Context, c client.Client, ext *extensionsv1
 // InstallFlux applies the Flux install manifest based on the given configuration. It also performs a basic health check
 // before returning.
 func InstallFlux(ctx context.Context, log logr.Logger, c client.Client, config *fluxv1alpha1.FluxInstallation) error {
+	return installFlux(ctx, log, c, config, "", 5*time.Second, time.Minute)
+}
+
+func installFlux(
+	ctx context.Context,
+	log logr.Logger,
+	c client.Client,
+	config *fluxv1alpha1.FluxInstallation,
+	manifestsBase string,
+	interval time.Duration,
+	timeout time.Duration,
+) error {
 	log = log.WithValues("version", config.Version)
 	log.Info("Installing Flux")
 
-	installManifest, err := GenerateInstallManifest(config)
+	installManifest, err := GenerateInstallManifest(config, manifestsBase)
 	if err != nil {
 		return fmt.Errorf("error generating install manifest: %w", err)
 	}
@@ -190,7 +203,7 @@ func InstallFlux(ctx context.Context, log logr.Logger, c client.Client, config *
 	gitRepositoryCRD := &apiextensionsv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{Name: "gitrepositories." + sourcev1.GroupVersion.Group},
 	}
-	if err := WaitForObject(ctx, c, gitRepositoryCRD, 5*time.Second, time.Minute, func() (done bool, err error) {
+	if err := WaitForObject(ctx, c, gitRepositoryCRD, interval, timeout, func() (done bool, err error) {
 		err = health.CheckCustomResourceDefinition(gitRepositoryCRD)
 		return err == nil, err
 	}); err != nil {
@@ -205,7 +218,7 @@ func InstallFlux(ctx context.Context, log logr.Logger, c client.Client, config *
 			Namespace: *config.Namespace,
 		},
 	}
-	if err := WaitForObject(ctx, c, sourceController, 5*time.Second, time.Minute, func() (done bool, err error) {
+	if err := WaitForObject(ctx, c, sourceController, interval, timeout, func() (done bool, err error) {
 		err = health.CheckDeployment(sourceController)
 		return err == nil, err
 	}); err != nil {
@@ -218,8 +231,8 @@ func InstallFlux(ctx context.Context, log logr.Logger, c client.Client, config *
 }
 
 // GenerateInstallManifest generates the Flux install manifest based on the given configuration just like
-// "flux install --export".
-func GenerateInstallManifest(config *fluxv1alpha1.FluxInstallation) ([]byte, error) {
+// "flux install --export". manifestsBase can be set for tests.
+func GenerateInstallManifest(config *fluxv1alpha1.FluxInstallation, manifestsBase string) ([]byte, error) {
 	options := fluxinstall.MakeDefaultOptions()
 	options.Version = *config.Version
 	options.Namespace = *config.Namespace
@@ -228,7 +241,7 @@ func GenerateInstallManifest(config *fluxv1alpha1.FluxInstallation) ([]byte, err
 	// don't deploy optional components
 	options.ComponentsExtra = nil
 
-	manifest, err := fluxinstall.Generate(options, "")
+	manifest, err := fluxinstall.Generate(options, manifestsBase)
 	if err != nil {
 		return nil, err
 	}
@@ -242,20 +255,33 @@ func BootstrapSource(
 	log logr.Logger,
 	seedClient, shootClient client.Client,
 	ext *extensionsv1alpha1.Extension,
-	cluster *extensionscontroller.Cluster,
-	config *fluxv1alpha1.FluxConfig,
+	cluster *extensions.Cluster,
+	config *fluxv1alpha1.Source,
+) error {
+	return bootstrapSource(ctx, log, seedClient, shootClient, ext.Namespace, cluster.Shoot.Spec.Resources, config, 5*time.Second, 5*time.Minute)
+}
+
+func bootstrapSource(
+	ctx context.Context,
+	log logr.Logger,
+	seedClient, shootClient client.Client,
+	extNamespace string,
+	resources []gardencorev1beta1.NamedResourceReference,
+	config *fluxv1alpha1.Source,
+	interval time.Duration,
+	timeout time.Duration,
 ) error {
 	log.Info("Bootstrapping Flux GitRepository")
 
 	// Create Namespace in case the GitRepository is located in a different namespace than the Flux components.
-	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: config.Source.Template.Namespace}}
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: config.Template.Namespace}}
 	if err := shootClient.Create(ctx, namespace); client.IgnoreAlreadyExists(err) != nil {
-		return fmt.Errorf("error creating %s namespace: %w", config.Source.Template.Namespace, err)
+		return fmt.Errorf("error creating %s namespace: %w", config.Template.Namespace, err)
 	}
 
 	// Create source secret if specified
-	if secretResourceName := config.Source.SecretResourceName; secretResourceName != nil {
-		resource := v1beta1helper.GetResourceByName(cluster.Shoot.Spec.Resources, *secretResourceName)
+	if secretResourceName := config.SecretResourceName; secretResourceName != nil {
+		resource := v1beta1helper.GetResourceByName(resources, *secretResourceName)
 		if resource == nil {
 			return fmt.Errorf("secret resource name does not match any of the resource names in Shoot.spec.resources[].name")
 		}
@@ -263,7 +289,7 @@ func BootstrapSource(
 		resourceSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      v1beta1constants.ReferencedResourcesPrefix + resource.ResourceRef.Name,
-				Namespace: ext.Namespace,
+				Namespace: extNamespace,
 			},
 		}
 		if err := seedClient.Get(ctx, client.ObjectKeyFromObject(resourceSecret), resourceSecret); err != nil {
@@ -272,7 +298,7 @@ func BootstrapSource(
 
 		shootSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      config.Source.Template.Spec.SecretRef.Name,
+				Name:      config.Template.Spec.SecretRef.Name,
 				Namespace: namespace.Name,
 			},
 			Data: maps.Clone(resourceSecret.Data),
@@ -283,17 +309,16 @@ func BootstrapSource(
 	}
 
 	// Create GitRepository
-	template := config.Source.Template
-	gitRepository := template.DeepCopy()
+	gitRepository := config.Template.DeepCopy()
 	if _, err := controllerutil.CreateOrUpdate(ctx, shootClient, gitRepository, func() error {
-		template.Spec.DeepCopyInto(&gitRepository.Spec)
+		config.Template.Spec.DeepCopyInto(&gitRepository.Spec)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("error applying GitRepository template: %w", err)
 	}
 
 	log.Info("Waiting for GitRepository to get ready")
-	if err := WaitForObject(ctx, shootClient, gitRepository, 5*time.Second, 5*time.Minute, CheckFluxObject(gitRepository)); err != nil {
+	if err := WaitForObject(ctx, shootClient, gitRepository, interval, timeout, CheckFluxObject(gitRepository)); err != nil {
 		return fmt.Errorf("error waiting for GitRepository to get ready: %w", err)
 	}
 
@@ -303,26 +328,36 @@ func BootstrapSource(
 }
 
 // BootstrapKustomization creates the Kustomization object specified in the given config and waits for it to get ready.
-func BootstrapKustomization(ctx context.Context, log logr.Logger, c client.Client, config *fluxv1alpha1.FluxConfig) error {
+func BootstrapKustomization(ctx context.Context, log logr.Logger, c client.Client, config *fluxv1alpha1.Kustomization) error {
+	return bootstrapKustomization(ctx, log, c, config, 5*time.Second, 5*time.Minute)
+}
+
+func bootstrapKustomization(
+	ctx context.Context,
+	log logr.Logger,
+	c client.Client,
+	config *fluxv1alpha1.Kustomization,
+	interval time.Duration,
+	timeout time.Duration,
+) error {
 	log.Info("Bootstrapping Flux Kustomization")
 
 	// Create Namespace in case the GitRepository is located in a different namespace than the Flux components.
-	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: config.Kustomization.Template.Namespace}}
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: config.Template.Namespace}}
 	if err := c.Create(ctx, namespace); client.IgnoreAlreadyExists(err) != nil {
-		return fmt.Errorf("error creating %s namespace: %w", config.Kustomization.Template.Namespace, err)
+		return fmt.Errorf("error creating %s namespace: %w", config.Template.Namespace, err)
 	}
 
-	template := config.Kustomization.Template
-	kustomization := template.DeepCopy()
+	kustomization := config.Template.DeepCopy()
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, kustomization, func() error {
-		template.Spec.DeepCopyInto(&kustomization.Spec)
+		config.Template.Spec.DeepCopyInto(&kustomization.Spec)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("error applying Kustomization template: %w", err)
 	}
 
 	log.Info("Waiting for Kustomization to get ready")
-	if err := WaitForObject(ctx, c, kustomization, 5*time.Second, 5*time.Minute, CheckFluxObject(kustomization)); err != nil {
+	if err := WaitForObject(ctx, c, kustomization, interval, timeout, CheckFluxObject(kustomization)); err != nil {
 		return fmt.Errorf("error waiting for Kustomization to get ready: %w", err)
 	}
 

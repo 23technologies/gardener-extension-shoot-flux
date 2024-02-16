@@ -27,15 +27,16 @@ var (
 	}
 )
 
-// RegisterHealthChecks registers health checks for each extension resource
-// HealthChecks are grouped by extension (e.g worker), extension.type (e.g aws) and  Health Check Type (e.g SystemComponentsHealthy)
-//
-// PARAMETERS
-// mgr  manager.Manager            Health check controller manager instance
-// opts healthcheck.DefaultAddArgs Options to add
+// RegisterHealthChecks registers health checks for the Extension resource.
 // The controller doesn't actually perform any health checks. However, it removes the health check Conditions written
 // by previous versions of the extension from the Extension status.
 func RegisterHealthChecks(ctx context.Context, mgr manager.Manager, opts healthcheck.DefaultAddArgs) error {
+	// Health checks don't make any sense as long as the extension only cares about bootstrapping flux once.
+	// This happens during Extension reconciliation, so the shoot reconciliation either continues successfully or fails at
+	// this step.
+	// During the cluster's lifetime, the status cannot change as such, as the extension has already fulfilled its
+	// purpose.
+	// TODO: add real health checks when this extension offers reconciling the flux resources
 	return healthcheck.DefaultRegistration(
 		ctx,
 		"shoot-flux",

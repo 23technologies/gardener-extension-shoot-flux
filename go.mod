@@ -17,6 +17,7 @@ require (
 	k8s.io/api v0.28.7
 	k8s.io/apiextensions-apiserver v0.28.7
 	k8s.io/apimachinery v0.28.7
+	k8s.io/client-go v0.28.7
 	k8s.io/code-generator v0.28.7
 	k8s.io/component-base v0.28.7
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
@@ -42,6 +43,7 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
+	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.7.0 // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/fluent/fluent-operator/v2 v2.2.0 // indirect
@@ -133,7 +135,6 @@ require (
 	istio.io/api v1.19.2-0.20231011000955-f3015ebb5bd4 // indirect
 	istio.io/client-go v1.19.3 // indirect
 	k8s.io/autoscaler/vertical-pod-autoscaler v1.0.0 // indirect
-	k8s.io/client-go v0.28.7 // indirect
 	k8s.io/gengo v0.0.0-20230829151522-9cce18d56c01 // indirect
 	k8s.io/helm v2.17.0+incompatible // indirect
 	k8s.io/klog v1.0.0 // indirect
