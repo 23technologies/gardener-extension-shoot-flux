@@ -6,7 +6,7 @@
 image: ghcr.io/stackitcloud/gardener-extension-shoot-flux:latest
 imagePullPolicy: IfNotPresent
 
-replicaCount: 1
+replicaCount: 2
 
 logLevel: info
 logFormat: json
@@ -31,20 +31,6 @@ controllers:
 
 disableControllers: []
 ignoreResources: false
-
-# imageVectorOverwrite: |
-#   images:
-#   - name: pause-container
-#     sourceRepository: github.com/kubernetes/kubernetes/blob/master/build/pause/Dockerfile
-#     repository: gcr.io/google_containers/pause-amd64
-#     tag: "3.0"
-#     version: 1.11.x
-#   - name: pause-container
-#     sourceRepository: github.com/kubernetes/kubernetes/blob/master/build/pause/Dockerfile
-#     repository: gcr.io/google_containers/pause-amd64
-#     tag: "3.1"
-#     version: ">= 1.12"
-#   ...
 
 metricsPort: 8080
 healthPort: 8081

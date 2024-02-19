@@ -24,9 +24,6 @@ spec:
   template:
     metadata:
       annotations:
-        {{- if .Values.imageVectorOverwrite }}
-        checksum/configmap-imagevector-overwrite: {{ include (print $.Template.BasePath "/configmap-imagevector-overwrite.yaml") . | sha256sum }}
-        {{- end }}
         {{- if and .Values.metrics.enableScraping }}
         prometheus.io/scrape: "true"
         prometheus.io/name: 'gardener-extension-shoot-flux'
@@ -69,10 +66,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        {{- if .Values.imageVectorOverwrite }}
-        - name: IMAGEVECTOR_OVERWRITE
-          value: /charts_overwrite/images_overwrite.yaml
-        {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -89,16 +82,3 @@ spec:
         resources:
 {{ toYaml .Values.resources | nindent 10 }}
 {{- end }}
-        volumeMounts:
-        {{- if .Values.imageVectorOverwrite }}
-        - name: imagevector-overwrite
-          mountPath: /charts_overwrite/
-          readOnly: true
-        {{- end }}
-      volumes:
-      {{- if .Values.imageVectorOverwrite }}
-      - name: imagevector-overwrite
-        configMap:
-          name: {{ include "name" . }}-imagevector-overwrite
-          defaultMode: 420
-      {{- end }}

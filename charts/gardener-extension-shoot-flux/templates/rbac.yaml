@@ -21,29 +21,6 @@ rules:
 - apiGroups:
   - extensions.gardener.cloud
   resources:
-  - dnsrecords
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - resources.gardener.cloud
-  resources:
-  - managedresources
-  verbs:
-  - "*"
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - extensions.gardener.cloud
-  resources:
   - extensions
   - extensions/status
   verbs:
@@ -55,11 +32,11 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
   - secrets
-  - events
   verbs:
-  - "*"
+  - get
+  - list
+  - watch
 - apiGroups:
   - coordination.k8s.io
   resources:

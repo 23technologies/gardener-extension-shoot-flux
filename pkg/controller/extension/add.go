@@ -7,13 +7,13 @@ import (
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	fluxv1alpha1 "github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis/flux/v1alpha1"
 )
 
 const (
-	// Type is type of the extension.
-	Type string = "shoot-flux"
 	// ControllerName is the name of the controller.
-	ControllerName = Type
+	ControllerName = "extension"
 )
 
 var (
@@ -36,10 +36,10 @@ func AddToManagerWithOptions(ctx context.Context, mgr manager.Manager, opts AddO
 		Actuator:          NewActuator(mgr),
 		ControllerOptions: opts.Controller,
 		Name:              ControllerName,
-		FinalizerSuffix:   Type,
+		FinalizerSuffix:   fluxv1alpha1.ExtensionType,
 		Resync:            60 * time.Minute,
 		Predicates:        extension.DefaultPredicates(ctx, mgr, opts.IgnoreOperationAnnotation),
-		Type:              Type,
+		Type:              fluxv1alpha1.ExtensionType,
 	})
 }
 

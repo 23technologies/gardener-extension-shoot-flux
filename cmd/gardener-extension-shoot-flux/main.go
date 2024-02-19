@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 SAP SE or an SAP affiliate company and Gardener contributors
+// SPDX-FileCopyrightText: 2024 SAP SE or an SAP affiliate company and Gardener contributors
 //
 // SPDX-License-Identifier: Apache-2.0
 
@@ -7,19 +7,19 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/gardener/gardener/pkg/logger"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/gardener/gardener/cmd/utils"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
-	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/cmd"
+	"github.com/stackitcloud/gardener-extension-shoot-flux/cmd/gardener-extension-shoot-flux/app"
 )
 
 func main() {
-	logf.SetLogger(logger.MustNewZapLogger("", ""))
+	utils.DeduplicateWarnings()
 
-	ctx := signals.SetupSignalHandler()
-	if err := cmd.NewServiceControllerCommand().ExecuteContext(ctx); err != nil {
+	if err := app.NewCommand().ExecuteContext(signals.SetupSignalHandler()); err != nil {
 		fmt.Println(err)
+		os.Exit(1)
 	}
 }
