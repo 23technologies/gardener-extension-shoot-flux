@@ -14,7 +14,7 @@ spec:
       kind: FluxConfig
       flux:
         # renovate:flux-version
-        version: v2.1.2
+        version: v2.2.3
         registry: ghcr.io/fluxcd
         namespace: flux-system
       source:
