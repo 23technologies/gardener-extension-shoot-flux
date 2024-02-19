@@ -13,7 +13,8 @@ spec:
       apiVersion: flux.extensions.gardener.cloud/v1alpha1
       kind: FluxConfig
       flux:
-        version: v2.1.2 # defaults to some current version, not latest!
+        # renovate:flux-version
+        version: v2.1.2
         registry: ghcr.io/fluxcd
         namespace: flux-system
       source:

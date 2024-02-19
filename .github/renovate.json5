@@ -16,14 +16,19 @@
     {
       "customType": "regex",
       "fileMatch": [
-        "^pkg/apis/flux/.*\\.go$"
+        "^pkg/apis/flux/.*\\.go$",
+        "^example/shoot\\.yaml"
       ],
       "matchStrings": [
-        "defaultFluxVersion = \"(?<currentValue>.*?)\"\\n",
+        "defaultFluxVersion = \"(?<currentValue>v[0-9.]+)\"",
         // this matches any comment block that has 'renovate:flux-version', then
         // any number of empty or comment lines, and then a substring that
         // matches e.g. "Defaults to "v1.0.0".
-        "renovate:flux-version\\n(?:\\s*(?:\\/\\/).*\n)*.*Defaults to \"(?<currentValue>.*?)\""
+        "renovate:flux-version\\n(?:\\s*(?:\\/\\/).*\n)*.*Defaults to \"(?<currentValue>v[0-9.]+)\"",
+        // this matches any comment block that has 'renovate:flux-version', then
+        // any number of empty or comment lines, and then a substring that
+        // matches e.g. "version: v1.0.0".
+        "renovate:flux-version\\n(?:\\s*(?:#).*\n)*.*version: (?<currentValue>v[0-9.]+)\\s"
       ],
       "depNameTemplate": "github.com/fluxcd/flux2/v2",
       "datasourceTemplate": "go"
