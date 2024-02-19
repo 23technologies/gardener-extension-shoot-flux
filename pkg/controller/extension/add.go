@@ -33,7 +33,7 @@ type AddOptions struct {
 // The opts.Reconciler is being set with a newly instantiated actuator.
 func AddToManagerWithOptions(ctx context.Context, mgr manager.Manager, opts AddOptions) error {
 	return extension.Add(ctx, mgr, extension.AddArgs{
-		Actuator:          NewActuator(mgr),
+		Actuator:          NewActuator(mgr.GetClient()),
 		ControllerOptions: opts.Controller,
 		Name:              ControllerName,
 		FinalizerSuffix:   fluxv1alpha1.ExtensionType,

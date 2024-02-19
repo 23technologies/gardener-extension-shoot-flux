@@ -21,8 +21,20 @@ func ValidateFluxConfig(fluxConfig *fluxv1alpha1.FluxConfig, shoot *gardencorev1
 		allErrs = append(allErrs, ValidateFluxInstallation(fluxConfig.Flux, fldPath.Child("flux"))...)
 	}
 
-	allErrs = append(allErrs, ValidateSource(&fluxConfig.Source, shoot, fldPath.Child("source"))...)
-	allErrs = append(allErrs, ValidateKustomization(&fluxConfig.Kustomization, fldPath.Child("kustomization"))...)
+	if (fluxConfig.Source == nil) && (fluxConfig.Kustomization != nil) {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("source"), fluxConfig.Source, "must specify a source if a kustomization is specified"))
+	}
+	if (fluxConfig.Kustomization == nil) && (fluxConfig.Source != nil) {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("kustomization"), fluxConfig.Kustomization, "must specify a kustomization if a source is specified"))
+	}
+
+	if fluxConfig.Source != nil {
+		allErrs = append(allErrs, ValidateSource(fluxConfig.Source, shoot, fldPath.Child("source"))...)
+	}
+
+	if fluxConfig.Kustomization != nil {
+		allErrs = append(allErrs, ValidateKustomization(fluxConfig.Kustomization, fldPath.Child("kustomization"))...)
+	}
 
 	return allErrs
 }
@@ -43,10 +55,10 @@ func ValidateFluxInstallation(fluxInstallation *fluxv1alpha1.FluxInstallation, f
 var supportedGitRepositoryGVK = sourcev1.GroupVersion.WithKind(sourcev1.GitRepositoryKind)
 
 // ValidateSource validates a Source object.
-func ValidateSource(gitRepository *fluxv1alpha1.Source, shoot *gardencorev1beta1.Shoot, fldPath *field.Path) field.ErrorList {
+func ValidateSource(source *fluxv1alpha1.Source, shoot *gardencorev1beta1.Shoot, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	template := gitRepository.Template
+	template := source.Template
 	templatePath := fldPath.Child("template")
 
 	if gvk := template.GroupVersionKind(); !gvk.Empty() && gvk != supportedGitRepositoryGVK {
@@ -64,7 +76,7 @@ func ValidateSource(gitRepository *fluxv1alpha1.Source, shoot *gardencorev1beta1
 	}
 
 	hasSecretRef := template.Spec.SecretRef != nil && template.Spec.SecretRef.Name != ""
-	hasSecretResourceName := ptr.Deref(gitRepository.SecretResourceName, "") != ""
+	hasSecretResourceName := ptr.Deref(source.SecretResourceName, "") != ""
 	secretRefPath := specPath.Child("secretRef")
 	secretResourceNamePath := fldPath.Child("secretResourceName")
 
@@ -81,8 +93,8 @@ func ValidateSource(gitRepository *fluxv1alpha1.Source, shoot *gardencorev1beta1
 			resourceNames.Insert(resource.Name)
 		}
 
-		if !resourceNames.Has(*gitRepository.SecretResourceName) {
-			allErrs = append(allErrs, field.Invalid(secretResourceNamePath, *gitRepository.SecretResourceName, "secret resource name does not match any of the resource names in Shoot.spec.resources[].name"))
+		if !resourceNames.Has(*source.SecretResourceName) {
+			allErrs = append(allErrs, field.Invalid(secretResourceNamePath, *source.SecretResourceName, "secret resource name does not match any of the resource names in Shoot.spec.resources[].name"))
 		}
 	}
 
@@ -92,10 +104,10 @@ func ValidateSource(gitRepository *fluxv1alpha1.Source, shoot *gardencorev1beta1
 var supportedKustomizationGVK = kustomizev1.GroupVersion.WithKind(kustomizev1.KustomizationKind)
 
 // ValidateKustomization validates a Kustomization object.
-func ValidateKustomization(gitRepository *fluxv1alpha1.Kustomization, fldPath *field.Path) field.ErrorList {
+func ValidateKustomization(kustomization *fluxv1alpha1.Kustomization, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	template := gitRepository.Template
+	template := kustomization.Template
 	templatePath := fldPath.Child("template")
 
 	if gvk := template.GroupVersionKind(); !gvk.Empty() && gvk != supportedKustomizationGVK {

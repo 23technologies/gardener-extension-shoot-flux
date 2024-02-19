@@ -15,8 +15,8 @@ import (
 	. "github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis/flux/v1alpha1/validation"
 )
 
-var _ = Describe("CloudProfileConfig validation", func() {
-	Describe("#ValidateCloudProfileConfig", func() {
+var _ = Describe("FluxConfig validation", func() {
+	Describe("#ValidateFluxConfig", func() {
 		var (
 			rootFldPath *field.Path
 			fluxConfig  *FluxConfig
@@ -27,7 +27,7 @@ var _ = Describe("CloudProfileConfig validation", func() {
 			rootFldPath = field.NewPath("root")
 
 			fluxConfig = &FluxConfig{
-				Source: Source{
+				Source: &Source{
 					Template: sourcev1.GitRepository{
 						Spec: sourcev1.GitRepositorySpec{
 							Reference: &sourcev1.GitRepositoryRef{
@@ -37,7 +37,7 @@ var _ = Describe("CloudProfileConfig validation", func() {
 						},
 					},
 				},
-				Kustomization: Kustomization{
+				Kustomization: &Kustomization{
 					Template: kustomizev1.Kustomization{
 						Spec: kustomizev1.KustomizationSpec{
 							Path: "clusters/production/flux-system",
@@ -50,6 +50,12 @@ var _ = Describe("CloudProfileConfig validation", func() {
 		})
 
 		It("should allow basic valid object", func() {
+			Expect(ValidateFluxConfig(fluxConfig, shoot, rootFldPath)).To(BeEmpty())
+		})
+
+		It("should allow having neither source nor kustomization", func() {
+			fluxConfig.Source = nil
+			fluxConfig.Kustomization = nil
 			Expect(ValidateFluxConfig(fluxConfig, shoot, rootFldPath)).To(BeEmpty())
 		})
 
@@ -77,6 +83,14 @@ var _ = Describe("CloudProfileConfig validation", func() {
 		})
 
 		Describe("Source validation", func() {
+			It("should deny only omitting the source", func() {
+				fluxConfig.Source = nil
+				Expect(ValidateFluxConfig(fluxConfig, shoot, rootFldPath)).To(ConsistOf(
+					PointTo(MatchFields(IgnoreExtras, Fields{
+						"Type":  Equal(field.ErrorTypeInvalid),
+						"Field": Equal("root.source"),
+					}))))
+			})
 			Describe("TypeMeta validation", func() {
 				It("should allow using supported apiVersion and kind", func() {
 					fluxConfig.Source.Template.APIVersion = "source.toolkit.fluxcd.io/v1"
@@ -250,6 +264,14 @@ var _ = Describe("CloudProfileConfig validation", func() {
 		})
 
 		Describe("Kustomization validation", func() {
+			It("should deny only omitting the kustomization", func() {
+				fluxConfig.Kustomization = nil
+				Expect(ValidateFluxConfig(fluxConfig, shoot, rootFldPath)).To(ConsistOf(
+					PointTo(MatchFields(IgnoreExtras, Fields{
+						"Type":  Equal(field.ErrorTypeInvalid),
+						"Field": Equal("root.kustomization"),
+					}))))
+			})
 			Describe("TypeMeta validation", func() {
 				It("should allow using supported apiVersion and kind", func() {
 					fluxConfig.Kustomization.Template.APIVersion = "kustomize.toolkit.fluxcd.io/v1"

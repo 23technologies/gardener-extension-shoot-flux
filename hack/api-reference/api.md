@@ -13,7 +13,9 @@ Resource Types:
 <h3 id="flux.extensions.gardener.cloud/v1alpha1.FluxConfig">FluxConfig
 </h3>
 <p>
-<p>FluxConfig specifies how to bootstrap Flux on the shoot cluster.</p>
+<p>FluxConfig specifies how to bootstrap Flux on the shoot cluster.
+When both &ldquo;Source&rdquo; and &ldquo;Kustomization&rdquo; are provided they are also installed in the shoot.
+Otherwise, only Flux itself is installed with no Objects to reconcile.</p>
 </p>
 <table>
 <thead>
@@ -47,7 +49,9 @@ Source
 </em>
 </td>
 <td>
-<p>Source configures how to bootstrap a Flux source object.</p>
+<em>(Optional)</em>
+<p>Source configures how to bootstrap a Flux source object.
+If provided, a &ldquo;Kustomization&rdquo; must also be provided.</p>
 </td>
 </tr>
 <tr>
@@ -60,7 +64,9 @@ Kustomization
 </em>
 </td>
 <td>
-<p>Kustomization configures how to bootstrap a Flux Kustomization object.</p>
+<em>(Optional)</em>
+<p>Kustomization configures how to bootstrap a Flux Kustomization object.
+If provided, &ldquo;Source&rdquo; must also be provided.</p>
 </td>
 </tr>
 </tbody>

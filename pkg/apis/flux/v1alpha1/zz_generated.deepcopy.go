@@ -22,8 +22,16 @@ func (in *FluxConfig) DeepCopyInto(out *FluxConfig) {
 		*out = new(FluxInstallation)
 		(*in).DeepCopyInto(*out)
 	}
-	in.Source.DeepCopyInto(&out.Source)
-	in.Kustomization.DeepCopyInto(&out.Kustomization)
+	if in.Source != nil {
+		in, out := &in.Source, &out.Source
+		*out = new(Source)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Kustomization != nil {
+		in, out := &in.Kustomization, &out.Kustomization
+		*out = new(Kustomization)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

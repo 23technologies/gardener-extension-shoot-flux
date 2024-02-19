@@ -29,21 +29,25 @@ func SetDefaults_FluxConfig(obj *FluxConfig) {
 		obj.Flux = &FluxInstallation{}
 	}
 
-	if sourceName := obj.Source.Template.Name; obj.Kustomization.Template.Spec.SourceRef.Name == "" && sourceName != "" {
-		obj.Kustomization.Template.Spec.SourceRef.Name = sourceName
-	}
-	if sourceNamespace := obj.Source.Template.Namespace; obj.Kustomization.Template.Spec.SourceRef.Namespace == "" && sourceNamespace != "" {
-		obj.Kustomization.Template.Spec.SourceRef.Namespace = sourceNamespace
+	// validation will ensure that both Source & Kustomization or set or both
+	// are nil, but we have to handle all cases, since defaulting happens first.
+	if obj.Source != nil && obj.Kustomization != nil {
+		if sourceName := obj.Source.Template.Name; obj.Kustomization.Template.Spec.SourceRef.Name == "" && sourceName != "" {
+			obj.Kustomization.Template.Spec.SourceRef.Name = sourceName
+		}
+		if sourceNamespace := obj.Source.Template.Namespace; obj.Kustomization.Template.Spec.SourceRef.Namespace == "" && sourceNamespace != "" {
+			obj.Kustomization.Template.Spec.SourceRef.Namespace = sourceNamespace
+		}
 	}
 
 	if namespace := ptr.Deref(obj.Flux.Namespace, ""); namespace != "" {
-		if obj.Source.Template.Namespace == "" {
+		if obj.Source != nil && obj.Source.Template.Namespace == "" {
 			obj.Source.Template.Namespace = namespace
 		}
-		if obj.Kustomization.Template.Namespace == "" {
+		if obj.Kustomization != nil && obj.Kustomization.Template.Namespace == "" {
 			obj.Kustomization.Template.Namespace = namespace
 		}
-		if obj.Kustomization.Template.Spec.SourceRef.Namespace == "" {
+		if obj.Kustomization != nil && obj.Kustomization.Template.Spec.SourceRef.Namespace == "" {
 			obj.Kustomization.Template.Spec.SourceRef.Namespace = namespace
 		}
 	}

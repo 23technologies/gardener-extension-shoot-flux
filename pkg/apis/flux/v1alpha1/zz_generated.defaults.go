@@ -26,6 +26,10 @@ func SetObjectDefaults_FluxConfig(in *FluxConfig) {
 	if in.Flux != nil {
 		SetDefaults_FluxInstallation(in.Flux)
 	}
-	SetDefaults_Source(&in.Source)
-	SetDefaults_Kustomization(&in.Kustomization)
+	if in.Source != nil {
+		SetDefaults_Source(in.Source)
+	}
+	if in.Kustomization != nil {
+		SetDefaults_Kustomization(in.Kustomization)
+	}
 }

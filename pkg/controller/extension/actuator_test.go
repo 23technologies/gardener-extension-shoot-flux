@@ -15,27 +15,76 @@ import (
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis/flux/v1alpha1"
+	fluxv1alpha1 "github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis/flux/v1alpha1"
+	"github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis/flux/v1alpha1/validation"
 )
+
+var _ = Describe("DecodeProviderConfig", func() {
+	var (
+		scheme     *runtime.Scheme
+		fakeClient client.Client
+		a          *actuator
+	)
+
+	BeforeEach(func() {
+		scheme = runtime.NewScheme()
+		Expect(fluxv1alpha1.AddToScheme(scheme)).To(Succeed())
+		fakeClient = fake.NewClientBuilder().WithScheme(scheme).Build()
+
+		a = NewActuator(fakeClient).(*actuator)
+	})
+
+	Context("valid providerConfig given", func() {
+		It("should decode and default providerConfig", func() {
+			rawExtension := &runtime.RawExtension{Raw: []byte(`apiVersion: flux.extensions.gardener.cloud/v1alpha1
+kind: FluxConfig
+flux:
+  version: v2.0.0
+`)}
+
+			config, err := a.DecodeProviderConfig(rawExtension)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(config.Flux.Version).To(PointTo(Equal("v2.0.0")))
+			Expect(config.Flux.Namespace).To(PointTo(Equal("flux-system")))
+
+			Expect(validation.ValidateFluxConfig(config, nil, nil)).
+				To(BeEmpty(), "decoded providerConfig should be accepted by validation")
+		})
+	})
+
+	Context("no providerConfig given", func() {
+		It("should default the providerConfig", func() {
+			config, err := a.DecodeProviderConfig(nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(config.Flux.Namespace).To(PointTo(Equal("flux-system")))
+
+			Expect(validation.ValidateFluxConfig(config, nil, nil)).
+				To(BeEmpty(), "defaulted providerConfig should be accepted by validation")
+		})
+	})
+})
 
 var _ = Describe("InstallFlux", func() {
 	var (
 		tmpDir      string
 		shootClient client.Client
-		config      *v1alpha1.FluxInstallation
+		config      *fluxv1alpha1.FluxInstallation
 	)
 	BeforeEach(func() {
 		tmpDir = setupManifests()
 		shootClient = newShootClient()
-		config = &v1alpha1.FluxInstallation{
+		config = &fluxv1alpha1.FluxInstallation{
 			Version:   ptr.To("v2.1.3"),
 			Registry:  ptr.To("reg.example.com"),
 			Namespace: ptr.To("gotk-system"),
@@ -66,14 +115,14 @@ var _ = Describe("BootstrapSource", func() {
 	var (
 		shootClient client.Client
 		seedClient  client.Client
-		config      *v1alpha1.Source
+		config      *fluxv1alpha1.Source
 
 		extNS = "ext-ns"
 	)
 	BeforeEach(func() {
 		shootClient = newShootClient()
 		seedClient = newSeedClient()
-		config = &v1alpha1.Source{
+		config = &fluxv1alpha1.Source{
 			Template: sourcev1.GitRepository{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "gitrepo",
@@ -168,11 +217,11 @@ var _ = Describe("BootstrapSource", func() {
 var _ = Describe("BootstrapKustomization", func() {
 	var (
 		shootClient client.Client
-		config      *v1alpha1.Kustomization
+		config      *fluxv1alpha1.Kustomization
 	)
 	BeforeEach(func() {
 		shootClient = newShootClient()
-		config = &v1alpha1.Kustomization{
+		config = &fluxv1alpha1.Kustomization{
 			Template: kustomizev1.Kustomization{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kustomization",
@@ -245,7 +294,7 @@ var _ = Describe("Bootstrapped Condition", func() {
 var _ = Describe("GenerateInstallManifest", func() {
 	It("should contain the provided options", func() {
 		dir := setupManifests()
-		out, err := GenerateInstallManifest(&v1alpha1.FluxInstallation{
+		out, err := GenerateInstallManifest(&fluxv1alpha1.FluxInstallation{
 			Version:   ptr.To("v2.0.0"),
 			Registry:  ptr.To("registry.example.com"),
 			Namespace: ptr.To("a-namespace"),
