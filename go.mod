@@ -8,29 +8,29 @@ require (
 	github.com/fluxcd/kustomize-controller/api v1.2.2
 	github.com/fluxcd/pkg/apis/meta v1.3.0
 	github.com/fluxcd/source-controller/api v1.2.4
-	github.com/gardener/gardener v1.88.0
+	github.com/gardener/gardener v1.88.2
 	github.com/go-logr/logr v1.4.1
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.31.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/tools v0.18.0
-	k8s.io/api v0.28.7
-	k8s.io/apiextensions-apiserver v0.28.7
-	k8s.io/apimachinery v0.28.7
-	k8s.io/client-go v0.28.7
-	k8s.io/code-generator v0.28.7
-	k8s.io/component-base v0.28.7
+	k8s.io/api v0.28.8
+	k8s.io/apiextensions-apiserver v0.28.8
+	k8s.io/apimachinery v0.28.8
+	k8s.io/client-go v0.28.8
+	k8s.io/code-generator v0.28.8
+	k8s.io/component-base v0.28.8
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	sigs.k8s.io/controller-runtime v0.16.5
 )
 
 replace (
-	k8s.io/api => k8s.io/api v0.28.7
-	k8s.io/apimachinery => k8s.io/apimachinery v0.28.7
-	k8s.io/client-go => k8s.io/client-go v0.28.7
-	k8s.io/code-generator => k8s.io/code-generator v0.28.7
-	k8s.io/component-base => k8s.io/component-base v0.28.7
+	k8s.io/api => k8s.io/api v0.28.8
+	k8s.io/apimachinery => k8s.io/apimachinery v0.28.8
+	k8s.io/client-go => k8s.io/client-go v0.28.8
+	k8s.io/code-generator => k8s.io/code-generator v0.28.8
+	k8s.io/component-base => k8s.io/component-base v0.28.8
 )
 
 require (
@@ -66,7 +66,7 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -126,7 +126,7 @@ require (
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20230803162519-f966b187b2e5 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d // indirect
-	google.golang.org/protobuf v1.32.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/evanphx/json-patch.v5 v5.7.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
