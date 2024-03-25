@@ -10,7 +10,7 @@ require (
 	github.com/fluxcd/source-controller/api v1.2.4
 	github.com/gardener/gardener v1.88.0
 	github.com/go-logr/logr v1.4.1
-	github.com/onsi/ginkgo/v2 v2.15.0
+	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.31.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5

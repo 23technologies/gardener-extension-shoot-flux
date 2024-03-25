@@ -48,11 +48,19 @@
       ]
     },
     {
+      "matchPackageNames": [
+        "github.com/onsi/gomega",
+        "github.com/onsi/ginkgo/v2"
+      ],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
       // bump k8s, controller-runtime, and gardener go dependencies together
-      groupName: "k8s and gardener packages",
-      groupSlug: "k8s-gardener-go",
-      matchDatasources: ["go"],
-      matchPackagePrefixes: [
+      "groupName": "k8s and gardener packages",
+      "groupSlug": "k8s-gardener-go",
+      "matchDatasources": ["go"],
+      "matchPackagePrefixes": [
         // from "group:kubernetes"
         "k8s.io/api",
         "k8s.io/apiextensions-apiserver",
@@ -88,9 +96,9 @@
     {
       // we need to bump k8s and controller-runtime minor versions together with gardener
       // disable minor version bumps for k8s and controller-runtime
-      matchDatasources: ["go"],
-      matchUpdateTypes: ["minor"],
-      matchPackagePrefixes: [
+      "matchDatasources": ["go"],
+      "matchUpdateTypes": ["minor"],
+      "matchPackagePrefixes": [
         // from "group:kubernetes"
         "k8s.io/api",
         "k8s.io/apiextensions-apiserver",
@@ -121,7 +129,7 @@
         // added packages
         "sigs.k8s.io/controller-runtime"
       ],
-      enabled: false
+      "enabled": false
     }
   ]
 }
