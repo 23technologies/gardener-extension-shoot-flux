@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ---
-image: ghcr.io/stackitcloud/gardener-extension-shoot-flux:latest
+image:
+  repository: ghcr.io/stackitcloud/gardener-extension-shoot-flux
+  tag: latest
 imagePullPolicy: IfNotPresent
 
 replicaCount: 2

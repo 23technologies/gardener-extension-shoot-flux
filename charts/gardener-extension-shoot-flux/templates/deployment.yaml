@@ -41,7 +41,7 @@ spec:
       serviceAccountName: {{ include "name" . }}
       containers:
       - name: {{ include "name" . }}
-        image: {{ .Values.image }}
+        image: {{ include "image" . }}
         imagePullPolicy: {{ .Values.imagePullPolicy }}
         args:
         - --extension-max-concurrent-reconciles={{ .Values.controllers.extension.concurrentSyncs }}
