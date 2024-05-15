@@ -32,7 +32,7 @@ func NewCommand() *cobra.Command {
 		Use:   Name,
 		Short: Name + " bootstraps Flux in shoot clusters",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			log, err := utils.InitRun(cmd, opts, Name)
 			if err != nil {
 				return err

@@ -1,3 +1,0 @@
-images:
-- kind: ControllerDeployment
-  path: providerConfig/values/image
