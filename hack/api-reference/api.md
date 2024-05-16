@@ -5,9 +5,6 @@
 </li>
 </ul>
 <h2 id="flux.extensions.gardener.cloud/v1alpha1">flux.extensions.gardener.cloud/v1alpha1</h2>
-<p>
-<p>Package v1alpha1 contains the Flux provider config API resources.</p>
-</p>
 Resource Types:
 <ul></ul>
 <h3 id="flux.extensions.gardener.cloud/v1alpha1.FluxConfig">FluxConfig

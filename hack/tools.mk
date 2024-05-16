@@ -7,9 +7,12 @@
 
 TOOLS_BIN_DIR              := $(TOOLS_DIR)/bin
 KO                         := $(TOOLS_BIN_DIR)/ko
+DEEPCOPY_GEN               := $(TOOLS_BIN_DIR)/deepcopy-gen
+DEFAULTER_GEN              := $(TOOLS_BIN_DIR)/defaulter-gen
 
 # default tool versions
 KO_VERSION ?= v0.15.0
+CODE_GENERATOR_VERSION ?= v0.29.5
 
 #########################################
 # Tools                                 #
@@ -17,3 +20,9 @@ KO_VERSION ?= v0.15.0
 
 $(KO): $(call tool_version_file,$(KO),$(KO_VERSION))
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/google/ko@$(KO_VERSION)
+
+$(DEEPCOPY_GEN):$(call tool_version_file,$(DEEPCOPY_GEN),$(CODE_GENERATOR_VERSION))
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/deepcopy-gen@$(CODE_GENERATOR_VERSION)
+
+$(DEFAULTER_GEN): $(call tool_version_file,$(DEFAULTER_GEN),$(CODE_GENERATOR_VERSION))
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install k8s.io/code-generator/cmd/defaulter-gen@$(CODE_GENERATOR_VERSION)

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-HACK_DIRECTORY := $(shell go list -m -f '{{.Dir}}' github.com/gardener/gardener)/hack
+GARDENER_HACK_DIR := $(shell go list -m -f '{{.Dir}}' github.com/gardener/gardener)/hack
 
 EXTENSION_PREFIX            := gardener-extension
 NAME                        := shoot-flux
@@ -11,7 +11,7 @@ REPO_ROOT                   := $(shell dirname $(realpath $(lastword $(MAKEFILE_
 HACK_DIR                    := $(REPO_ROOT)/hack
 VERSION                     := $(shell git describe --tag --always --dirty)
 TAG							:= $(VERSION)
-LD_FLAGS                    := -w $(shell EFFECTIVE_VERSION=$(VERSION) bash $(HACK_DIRECTORY)/get-build-ld-flags.sh k8s.io/component-base $(REPO_ROOT)/go.mod $(EXTENSION_PREFIX)-$(NAME) 2>&1 | grep -v .dockerignore)
+LD_FLAGS                    := -w $(shell EFFECTIVE_VERSION=$(VERSION) bash $(GARDENER_HACK_DIR)/get-build-ld-flags.sh k8s.io/component-base $(REPO_ROOT)/go.mod $(EXTENSION_PREFIX)-$(NAME) 2>&1 | grep -v .dockerignore)
 LEADER_ELECTION             := false
 IGNORE_OPERATION_ANNOTATION := false
 
@@ -21,8 +21,8 @@ SHELL=/usr/bin/env bash -o pipefail
 # Tools                                 #
 #########################################
 
-TOOLS_DIR := hack/tools
--include $(HACK_DIRECTORY)/tools.mk
+TOOLS_DIR := $(HACK_DIR)/tools
+-include $(GARDENER_HACK_DIR)/tools.mk
 include hack/tools.mk
 
 .PHONY: start
@@ -64,32 +64,32 @@ tidy:
 
 # run `make init` to perform an initial go mod cache sync which is required for other make targets
 init: tidy
-# needed so that check-generate.sh can call make revendor
-revendor: tidy
 
 .PHONY: clean
 clean:
-	@bash $(HACK_DIRECTORY)/clean.sh ./cmd/... ./pkg/...
+	@bash $(GARDENER_HACK_DIR)/clean.sh ./cmd/... ./pkg/...
 
 .PHONY: check-generate
 check-generate:
-	@bash $(HACK_DIRECTORY)/check-generate.sh $(REPO_ROOT)
+	@bash $(GARDENER_HACK_DIR)/check-generate.sh $(REPO_ROOT)
 
 .PHONY: check
 check: $(GO_ADD_LICENSE) $(GOIMPORTS) $(GOLANGCI_LINT) $(HELM) $(YQ)
-	@bash $(HACK_DIRECTORY)/check.sh --golangci-lint-config=./.golangci.yaml ./cmd/... ./pkg/...
-	@bash $(HACK_DIRECTORY)/check-charts.sh ./charts
+	@bash $(GARDENER_HACK_DIR)/check.sh --golangci-lint-config=./.golangci.yaml ./cmd/... ./pkg/...
+	@bash $(GARDENER_HACK_DIR)/check-charts.sh ./charts
 
 .PHONY: generate
-generate: $(GEN_CRD_API_REFERENCE_DOCS)
-	@bash $(HACK_DIRECTORY)/generate-controller-registration.sh --pod-security-enforce=privileged shoot-flux charts/gardener-extension-shoot-flux latest deploy/extension/base/controller-registration.yaml Extension:shoot-flux
-	@bash $(HACK_DIRECTORY)/generate-sequential.sh ./cmd/... ./pkg/...
-	@hack/update-codegen.sh
-	@gen-crd-api-reference-docs -api-dir ./pkg/apis -config ./hack/api-reference/api.json -template-dir $(HACK_DIRECTORY)/api-reference/template -out-file ./hack/api-reference/api.md
+generate: $(VGOPATH) $(DEEPCOPY_GEN) $(DEFAULTER_GEN) $(GEN_CRD_API_REFERENCE_DOCS) $(HELM)
+	@bash $(GARDENER_HACK_DIR)/generate-controller-registration.sh --pod-security-enforce=privileged shoot-flux charts/gardener-extension-shoot-flux latest deploy/extension/base/controller-registration.yaml Extension:shoot-flux
+	@VGOPATH=$(VGOPATH) \
+	REPO_ROOT=$(REPO_ROOT) \
+	GARDENER_HACK_DIR=$(GARDENER_HACK_DIR) \
+	bash $(GARDENER_HACK_DIR)/generate-sequential.sh ./cmd/... ./pkg/...
+	@gen-crd-api-reference-docs -api-dir ./pkg/apis/flux/v1alpha1 -config ./hack/api-reference/api.json -template-dir $(GARDENER_HACK_DIR)/api-reference/template -out-file ./hack/api-reference/api.md
 
 .PHONY: format
 format: $(GOIMPORTS) $(GOIMPORTSREVISER)
-	@bash $(HACK_DIRECTORY)/format.sh ./cmd ./pkg
+	@bash $(GARDENER_HACK_DIR)/format.sh ./cmd ./pkg
 
 .PHONY: test
 test: $(REPORT_COLLECTOR)
@@ -97,11 +97,11 @@ test: $(REPORT_COLLECTOR)
 
 .PHONY: test-cov
 test-cov:
-	@bash $(HACK_DIRECTORY)/test-cover.sh ./cmd/... ./pkg/...
+	@bash $(GARDENER_HACK_DIR)/test-cover.sh ./cmd/... ./pkg/...
 
 .PHONY: test-cov-clean
 test-cov-clean:
-	@bash $(HACK_DIRECTORY)/test-cover-clean.sh
+	@bash $(GARDENER_HACK_DIR)/test-cover-clean.sh
 
 .PHONY: verify
 verify: check format test
