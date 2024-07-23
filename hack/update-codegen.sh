@@ -61,11 +61,11 @@ echo "${bold}Public types${normal}"
 echo "Generating ${blue}deepcopy${normal}"
 deepcopy-gen \
   --go-header-file "$BASE_DIR/boilerplate.go.txt" \
-  --input-dirs "$(qualify-gvs "github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis" "flux:v1alpha1")" \
-  -O zz_generated.deepcopy
+  --output-file zz_generated.deepcopy.go \
+  "$(qualify-gvs "github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis" "flux:v1alpha1")"
 
 echo "Generating ${blue}defaulter${normal}"
 defaulter-gen \
   --go-header-file "$BASE_DIR/boilerplate.go.txt" \
-  --input-dirs "$(qualify-gvs "github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis" "flux:v1alpha1")" \
-  -O zz_generated.defaults
+  --output-file zz_generated.defaults.go \
+  "$(qualify-gvs "github.com/stackitcloud/gardener-extension-shoot-flux/pkg/apis" "flux:v1alpha1")"

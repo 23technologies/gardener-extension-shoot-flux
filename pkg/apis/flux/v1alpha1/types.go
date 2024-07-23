@@ -32,7 +32,7 @@ type FluxInstallation struct {
 	// renovate updates the doc string. See renovate config for more details
 
 	// Version specifies the Flux version that should be installed.
-	// Defaults to "v2.2.3".
+	// Defaults to "v2.3.0".
 	// +optional
 	Version *string `json:"version,omitempty"`
 	// Registry specifies the container registry where the Flux controller images are pulled from.
