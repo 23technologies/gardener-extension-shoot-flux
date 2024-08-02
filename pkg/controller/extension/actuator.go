@@ -3,7 +3,6 @@ package extension
 import (
 	"context"
 	"fmt"
-	"maps"
 	"time"
 
 	fluxinstall "github.com/fluxcd/flux2/v2/pkg/manifestgen/install"
@@ -14,11 +13,9 @@ import (
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	"github.com/gardener/gardener/extensions/pkg/util"
 	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
-	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 	v1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/client/kubernetes"
-	"github.com/gardener/gardener/pkg/extensions"
 	"github.com/gardener/gardener/pkg/utils/kubernetes/health"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -68,14 +65,18 @@ func (a *actuator) Reconcile(ctx context.Context, log logr.Logger, ext *extensio
 		return fmt.Errorf("invalid providerConfig: %w", allErrs.ToAggregate())
 	}
 
-	if IsFluxBootstrapped(ext) {
-		log.V(1).Info("Flux installation has been bootstrapped already, skipping reconciliation of Flux resources")
-		return nil
-	}
-
 	_, shootClient, err := util.NewClientForShoot(ctx, a.client, ext.Namespace, client.Options{Scheme: a.client.Scheme()}, extensionsconfig.RESTOptions{})
 	if err != nil {
 		return fmt.Errorf("error creating shoot client: %w", err)
+	}
+
+	if err := ReconcileSecrets(ctx, log, a.client, shootClient, ext.Namespace, config, cluster.Shoot.Spec.Resources); err != nil {
+		return fmt.Errorf("error reconciling secrets: %w", err)
+	}
+
+	if IsFluxBootstrapped(ext) {
+		log.V(1).Info("Flux installation has been bootstrapped already, skipping reconciliation of Flux resources")
+		return nil
 	}
 
 	if err := InstallFlux(ctx, log, shootClient, config.Flux); err != nil {
@@ -83,7 +84,7 @@ func (a *actuator) Reconcile(ctx context.Context, log logr.Logger, ext *extensio
 	}
 
 	if config.Source != nil {
-		if err := BootstrapSource(ctx, log, a.client, shootClient, ext, cluster, config.Source); err != nil {
+		if err := BootstrapSource(ctx, log, shootClient, config.Source); err != nil {
 			return fmt.Errorf("error bootstrappping Flux GitRepository: %w", err)
 		}
 	}
@@ -256,20 +257,16 @@ func GenerateInstallManifest(config *fluxv1alpha1.FluxInstallation, manifestsBas
 func BootstrapSource(
 	ctx context.Context,
 	log logr.Logger,
-	seedClient, shootClient client.Client,
-	ext *extensionsv1alpha1.Extension,
-	cluster *extensions.Cluster,
+	shootClient client.Client,
 	config *fluxv1alpha1.Source,
 ) error {
-	return bootstrapSource(ctx, log, seedClient, shootClient, ext.Namespace, cluster.Shoot.Spec.Resources, config, 5*time.Second, 5*time.Minute)
+	return bootstrapSource(ctx, log, shootClient, config, 5*time.Second, 5*time.Minute)
 }
 
 func bootstrapSource(
 	ctx context.Context,
 	log logr.Logger,
-	seedClient, shootClient client.Client,
-	extNamespace string,
-	resources []gardencorev1beta1.NamedResourceReference,
+	shootClient client.Client,
 	config *fluxv1alpha1.Source,
 	interval time.Duration,
 	timeout time.Duration,
@@ -280,35 +277,6 @@ func bootstrapSource(
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: config.Template.Namespace}}
 	if err := shootClient.Create(ctx, namespace); client.IgnoreAlreadyExists(err) != nil {
 		return fmt.Errorf("error creating %s namespace: %w", config.Template.Namespace, err)
-	}
-
-	// Create source secret if specified
-	if secretResourceName := config.SecretResourceName; secretResourceName != nil {
-		resource := v1beta1helper.GetResourceByName(resources, *secretResourceName)
-		if resource == nil {
-			return fmt.Errorf("secret resource name does not match any of the resource names in Shoot.spec.resources[].name")
-		}
-
-		resourceSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      v1beta1constants.ReferencedResourcesPrefix + resource.ResourceRef.Name,
-				Namespace: extNamespace,
-			},
-		}
-		if err := seedClient.Get(ctx, client.ObjectKeyFromObject(resourceSecret), resourceSecret); err != nil {
-			return fmt.Errorf("error reading referenced secret: %w", err)
-		}
-
-		shootSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      config.Template.Spec.SecretRef.Name,
-				Namespace: namespace.Name,
-			},
-			Data: maps.Clone(resourceSecret.Data),
-		}
-		if err := shootClient.Create(ctx, shootSecret); client.IgnoreAlreadyExists(err) != nil {
-			return fmt.Errorf("error creating GitRepository secret: %w", err)
-		}
 	}
 
 	// Create GitRepository

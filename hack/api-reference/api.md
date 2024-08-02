@@ -7,6 +7,48 @@
 <h2 id="flux.extensions.gardener.cloud/v1alpha1">flux.extensions.gardener.cloud/v1alpha1</h2>
 Resource Types:
 <ul></ul>
+<h3 id="flux.extensions.gardener.cloud/v1alpha1.AdditionalResource">AdditionalResource
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#flux.extensions.gardener.cloud/v1alpha1.FluxConfig">FluxConfig</a>)
+</p>
+<p>
+<p>AdditionalResource to sync to the shoot.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name references a resource under Shoot.spec.resources.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>targetName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TargetName optionally overwrites the name of the secret in the shoot.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="flux.extensions.gardener.cloud/v1alpha1.FluxConfig">FluxConfig
 </h3>
 <p>
@@ -64,6 +106,22 @@ Kustomization
 <em>(Optional)</em>
 <p>Kustomization configures how to bootstrap a Flux Kustomization object.
 If provided, &ldquo;Source&rdquo; must also be provided.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>additionalSecretResources</code></br>
+<em>
+<a href="#flux.extensions.gardener.cloud/v1alpha1.AdditionalResource">
+[]AdditionalResource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AdditionalSecretResources to sync to the shoot.
+Secrets referenced here are only created if they don&rsquo;t exist in the shoot yet.
+When a secret is removed from this list, it is deleted in the shoot.</p>
 </td>
 </tr>
 </tbody>

@@ -29,3 +29,6 @@ spec:
         kind: Kustomization
         spec:
           path: clusters/production/flux-system
+    # additionalSecretResources:
+    #   - name: shoot-vault-secret
+    #     targetName: vault

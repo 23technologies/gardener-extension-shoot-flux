@@ -24,6 +24,21 @@ type FluxConfig struct {
 	// If provided, "Source" must also be provided.
 	// +optional
 	Kustomization *Kustomization `json:"kustomization,omitempty"`
+
+	// AdditionalSecretResources to sync to the shoot.
+	// Secrets referenced here are only created if they don't exist in the shoot yet.
+	// When a secret is removed from this list, it is deleted in the shoot.
+	// +optional
+	AdditionalSecretResources []AdditionalResource `json:"additionalSecretResources,omitempty"`
+}
+
+// AdditionalResource to sync to the shoot.
+type AdditionalResource struct {
+	// Name references a resource under Shoot.spec.resources.
+	Name string `json:"name"`
+	// TargetName optionally overwrites the name of the secret in the shoot.
+	// +optional
+	TargetName *string `json:"targetName,omitempty"`
 }
 
 // FluxInstallation configures the Flux installation in the Shoot cluster.
