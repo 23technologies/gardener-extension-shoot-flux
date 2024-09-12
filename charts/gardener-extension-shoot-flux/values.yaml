@@ -16,6 +16,11 @@ resources: {}
 envFrom: []
 extraEnv: []
 extraArgs: []
+extraSecrets: []
+# - name: foo
+#   data: {}
+#   stringData: {}
+
 vpa:
   enabled: true
   resourcePolicy:
