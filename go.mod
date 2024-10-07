@@ -4,9 +4,9 @@ go 1.22.3
 
 replace (
 	// these replaces are needed, because gardener is on older k8s/controller-runtime packages
-	k8s.io/client-go => k8s.io/client-go v0.29.7
-	k8s.io/code-generator => k8s.io/code-generator v0.29.7
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.17.5
+	k8s.io/client-go => k8s.io/client-go v0.29.9
+	k8s.io/code-generator => k8s.io/code-generator v0.29.9
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.17.6
 )
 
 require (
@@ -23,14 +23,14 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/tools v0.26.0
-	k8s.io/api v0.30.3
-	k8s.io/apiextensions-apiserver v0.30.3
-	k8s.io/apimachinery v0.30.3
-	k8s.io/client-go v0.30.3
-	k8s.io/code-generator v0.30.3
-	k8s.io/component-base v0.30.3
+	k8s.io/api v0.30.5
+	k8s.io/apiextensions-apiserver v0.30.5
+	k8s.io/apimachinery v0.30.5
+	k8s.io/client-go v0.30.5
+	k8s.io/code-generator v0.30.5
+	k8s.io/component-base v0.30.5
 	k8s.io/utils v0.0.0-20240921022957-49e7df575cb6
-	sigs.k8s.io/controller-runtime v0.18.4
+	sigs.k8s.io/controller-runtime v0.18.5
 )
 
 require (
