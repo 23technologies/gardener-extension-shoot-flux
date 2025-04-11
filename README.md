@@ -1,3 +1,5 @@
+ARCHIVED: development has moved to https://github.com/stackitcloud/gardener-extension-shoot-flux/
+
 # Gardener Extension for Flux
 
 [![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
